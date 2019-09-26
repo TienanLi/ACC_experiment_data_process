@@ -66,3 +66,20 @@ def analyze_SEATBELT_STATUS(message_array):
     draw_fig(range(len(driver_seatbelt_latched)), '', driver_seatbelt_latched, 'latched')
     draw_fig(range(len(driver_seatbelt_unlatched)), '', driver_seatbelt_unlatched, 'unlatched')
 
+#66, TODO
+# def analyze_RADAR_HUD(message_array):
+
+
+def analyze_KINEMATICS(message_array):
+    long_accel = []
+    for m in message_array:
+        message = m[1].split('x')[1] #66, get the hex number for KINEMATICS
+        bin1 = hex_to_byte(message, 8) #66, transform the hex to 64 binary numbers
+        bin2 = bin1[30:40] #66, get the 31~40 binary numbers which correspond to longtitudinal acceleration
+        dec1 = int(bin2, 2) #66, transform the 31~40 binary value to decimal
+        factor = -0.035 #66, this is read from CABANA
+        offset = 17.92 #66, this is read from CABANA
+        result = factor * dec1 + offset #66, compute the real longitudinal acceleration value
+        long_accel.append(result)
+
+    draw_fig(range(len(long_accel)),'time step',long_accel,'long_accel')
