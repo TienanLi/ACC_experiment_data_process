@@ -19,6 +19,8 @@ def main():
     SEATBELT_STATUS=messeage_dict['0x305']
     civic.analyze_SEATBELT_STATUS(SEATBELT_STATUS)
 
+    KINEMATICS = messeage_dict['0x94'] # this is to get longi_accel
+    civic.analyze_KINEMATICS(KINEMATICS)
 
 if __name__ == '__main__':
     main() #The beginning of the program. It goes to the def main() function,
