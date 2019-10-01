@@ -2,7 +2,7 @@ import civic
 from side_functions import read_data_from_csv
 
 def main():
-    messeage_dict=read_data_from_csv('output_hao.csv')
+    messeage_dict=read_data_from_csv('\data\output.csv')
 
     ENGINE_DATA=messeage_dict['0x158']
     civic.analyze_ENGINE_DATA(ENGINE_DATA)
