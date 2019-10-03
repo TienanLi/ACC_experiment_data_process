@@ -26,7 +26,7 @@ def analyze_ENGINE_DATA(message_array):
         rpm.append(ENGINE_RPM)
 
     draw_fig(range(len(speed)),'',speed,'speed (kph)')
-    draw_fig(range(len(rpm)),'',rpm,'RPM')
+    # draw_fig(range(len(rpm)),'',rpm,'RPM')
 
 def analyze_POWERTRAIN_DATA(message_array):
     brake_on = []

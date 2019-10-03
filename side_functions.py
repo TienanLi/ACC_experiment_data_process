@@ -1,4 +1,6 @@
 import matplotlib.pyplot as plt
+import os
+
 
 def draw_fig(x,x_label,y,y_label):
     fig = plt.figure(figsize=(8, 8), dpi=300)
@@ -15,9 +17,9 @@ def hex_to_byte(hex_str, length):
     return bin(int(hex_str, scale))[2:].zfill(num_of_bits)
 
 def read_data_from_csv(file_name):
-    information={}
 
-    fo = open(file_name, 'r')
+    information={}
+    fo = open(os.path.dirname(__file__)+file_name, 'r')
     fo.readline()
     line_num=0
     while True:
@@ -30,11 +32,16 @@ def read_data_from_csv(file_name):
         tmp = line.split(',')
         if len(tmp)<4:
             break
+
         time=line_num
         BUS=tmp[0]
         message_ID=tmp[1]
         message=tmp[2]
-        message_length=int(tmp[3])
+        try:
+            message_length=int(tmp[3].replace("\n", ""))
+        except:
+            message_length=0
+
         if message_ID in information.keys():
             information[message_ID].append((time,message,message_length,BUS))
         else:
