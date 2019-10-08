@@ -14,6 +14,8 @@ def draw_fig(x,x_label,y,y_label):
 def hex_to_byte(hex_str, length):
     scale = 16  ## equals to hexadecimal
     num_of_bits = 8 * length
+    num_of_bits = length
+
     return bin(int(hex_str, scale))[2:].zfill(num_of_bits)
 
 def read_data_from_csv(file_name,message_ID_location):

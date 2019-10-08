@@ -33,7 +33,7 @@ def analyze_POWERTRAIN_DATA(message_array):
     for m in message_array:
         message = m[1].split('x')[1]
         length = m[2]
-        BRAKE_SWITCH = hex_to_byte(message[4],1)[-1]
+        BRAKE_SWITCH = hex_to_byte(message[4],8)[-1]
         brake_on.append(BRAKE_SWITCH)
 
     draw_fig(range(len(brake_on)), '', brake_on, 'brake on')
@@ -43,7 +43,7 @@ def analyze_STANDSTILL(message_array):
     for m in message_array:
         message = m[1].split('x')[1]
         length = m[2]
-        WHEELS_MOVING = hex_to_byte(message[1], 1)[3]
+        WHEELS_MOVING = hex_to_byte(message[1], 8)[3]
         wheels_moving.append(WHEELS_MOVING)
 
     draw_fig(range(len(wheels_moving)), '', wheels_moving, 'wheels moving')
@@ -55,9 +55,9 @@ def analyze_SEATBELT_STATUS(message_array):
     for m in message_array:
         message = m[1].split('x')[1]
         length = m[2]
-        SEATBELT_DRIVER_LAMP = hex_to_byte(message[0], 1)[0]
-        SEATBELT_DRIVER_LATCHED = hex_to_byte(message[1], 1)[2]
-        SEATBELT_DRIVER_UNLATCHED = hex_to_byte(message[1], 1)[3]
+        SEATBELT_DRIVER_LAMP = hex_to_byte(message[0], 8)[0]
+        SEATBELT_DRIVER_LATCHED = hex_to_byte(message[1], 8)[2]
+        SEATBELT_DRIVER_UNLATCHED = hex_to_byte(message[1], 8)[3]
         driver_seatbelt_lamp.append(SEATBELT_DRIVER_LAMP)
         driver_seatbelt_latched.append(SEATBELT_DRIVER_LATCHED)
         driver_seatbelt_unlatched.append(SEATBELT_DRIVER_UNLATCHED)
@@ -74,7 +74,7 @@ def analyze_KINEMATICS(message_array):
     long_accel = []
     for m in message_array:
         message = m[1].split('x')[1] #66, get the hex number for KINEMATICS
-        bin1 = hex_to_byte(message, 8) #66, transform the hex to 64 binary numbers
+        bin1 = hex_to_byte(message, 64) #66, transform the hex to 64 binary numbers
         bin2 = bin1[30:40] #66, get the 31~40 binary numbers which correspond to longtitudinal acceleration
         dec1 = int(bin2, 2) #66, transform the 31~40 binary value to decimal
         factor = -0.035 #66, this is read from CABANA

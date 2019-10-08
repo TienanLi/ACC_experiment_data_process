@@ -10,15 +10,20 @@ def main():
     run=4
     set=1
     messeage_ID_location=1
+    model='civic'
     if run==4:
         messeage_ID_location=5
-    messeage_dict=read_data_from_csv('\\data\\output%s_%s.csv' % (run, set),
+        model='prius'
+    messeage_dict=read_data_from_csv('\\data\\%s\\output%s_%s.csv' % (model,run, set),
                                      messeage_ID_location)
     # analyze_civic(messeage_dict)
     analyze_prius(messeage_dict)
 
 
 def analyze_prius(messeage_dict):
+    # STEER_ANGLE_SENSOR = messeage_dict[37]
+    # prius.analyze_STEER_ANGLE_SENSOR(STEER_ANGLE_SENSOR)
+
     SPEED=messeage_dict[180]
     prius.analyze_SPEED(SPEED)
 
