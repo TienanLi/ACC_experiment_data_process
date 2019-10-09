@@ -10,7 +10,7 @@ def main():
     global run
     run=4
     global set
-    set=5
+    set=4
 
     messeage_ID_location=1
     model='civic'
@@ -31,6 +31,7 @@ def analyze_prius(messeage_dict):
     speed_time_series,speed=prius.analyze_SPEED(SPEED)
     LEAD_INFO=messeage_dict[742]
     front_space_time_series,front_space=prius.analyze_LEAD_INFO(LEAD_INFO)
+
     draw_traj(speed_time_series,speed,front_space_time_series,front_space,str(run)+'_'+str(set))
 
 

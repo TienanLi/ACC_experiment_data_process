@@ -75,6 +75,7 @@ def read_data_from_csv(file_name,message_ID_location):
     return information
 
 def draw_traj(speed_time,speed,front_space_time,front_space,fig_name):
+
     original_location=[0]
     for i in range(len(speed)-1):
         forward = (speed_time[i + 1] - speed_time[i]) * speed[i] / 3.6
@@ -85,8 +86,11 @@ def draw_traj(speed_time,speed,front_space_time,front_space,fig_name):
     t=np.arange(new_time_start,new_time_end,1/expected_frequency)
     v=convert_time_series_frequency(speed_time,speed,t)
     d=convert_time_series_frequency(speed_time,original_location,t)
-    g=convert_time_series_frequency(front_space_time,front_space,t)
-    d_LV=[d[i]+g[i] for i in range(len(d))]
+    front_space=fill_front_space_missing_signal(front_space,high_threshold=200)
+    space=convert_time_series_frequency(front_space_time,front_space,t)
+    draw_fig(t,'',space,'revised space (m)')
+
+    d_LV=[d[i]+space[i] for i in range(len(d))]
     v_LV=[(d_LV[i+1]-d_LV[i])/0.01*3.6 for i in range(len(d_LV)-1)]
     v_LV.append(v_LV[-1])
     v_LV=moving_average(v_LV,200)
@@ -169,3 +173,19 @@ def w_function(x,w,ita,k):
 
 def moving_average(a, n) :
     return pd.Series(a).rolling(n, min_periods=9).mean().tolist()
+
+def fill_front_space_missing_signal(serie,high_threshold):
+    missing_index=[]
+    for i in range(len(serie)):
+        if len(missing_index)==0 and serie[i]<high_threshold:
+            interplot_start=serie[i]
+        elif serie[i]>=high_threshold:
+            missing_index.append(i)
+        else:
+            interplot_end=serie[i]
+            x_start=missing_index[0] - 1
+            slope = (interplot_end - interplot_start) / (i - x_start)
+            for m_i in missing_index:
+                serie[m_i] = interplot_start + (m_i - x_start) * slope
+            missing_index=[]
+    return serie
