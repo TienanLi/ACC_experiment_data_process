@@ -1,14 +1,17 @@
 import civic
 import prius
-from side_functions import read_data_from_csv
+from side_functions import read_data_from_csv,draw_traj
 
 def main():
     #run 1: 1 set - data in still, message ID at 1
     #run 2: 3 set - data in highway, message ID at 1
     #run 3: 1 set - example data download from cabana, message ID at 1
     #run 4: 1 set - Toyota data, message ID at 5
+    global run
     run=4
-    set=1
+    global set
+    set=5
+
     messeage_ID_location=1
     model='civic'
     if run==4:
@@ -25,7 +28,11 @@ def analyze_prius(messeage_dict):
     # prius.analyze_STEER_ANGLE_SENSOR(STEER_ANGLE_SENSOR)
 
     SPEED=messeage_dict[180]
-    prius.analyze_SPEED(SPEED)
+    speed_time_series,speed=prius.analyze_SPEED(SPEED)
+    LEAD_INFO=messeage_dict[742]
+    front_space_time_series,front_space=prius.analyze_LEAD_INFO(LEAD_INFO)
+    draw_traj(speed_time_series,speed,front_space_time_series,front_space,str(run)+'_'+str(set))
+
 
 def analyze_civic(messeage_dict):
     ENGINE_DATA=messeage_dict['0x158']
