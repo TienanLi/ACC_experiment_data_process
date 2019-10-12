@@ -19,12 +19,25 @@ def hex_to_byte(hex_str, length):
     num_of_bits = length
     return bin(int(hex_str, scale))[2:].zfill(num_of_bits)
 
-
 def hex_to_int(hex_str,total_length,m_start,m_length,signed):
-    int_value=int(hex_to_byte(hex_str,total_length)[m_start:m_start+m_length],2)
-    if signed and hex_str[0]==1:
-        return ~int_value
+    bin_string=hex_to_byte(hex_str, total_length)[m_start:m_start + m_length]
+    int_value=int(bin_string,2)
+    if signed and int_value>2**(m_length-1):
+        int_value=int(inverse(bin_string),2)
+        int_value=~int_value
     return int_value
+
+def inverse(string10):
+    k=''
+    for s in string10:
+        k=k+complement(s)
+    return k
+
+def complement(inp):
+    if inp=='1':
+        return '0'
+    if inp=='0':
+        return '1'
 
 def read_data_from_csv(file_name,message_ID_location):
 
@@ -119,15 +132,13 @@ def draw_traj(speed_time,speed,front_space_time,front_space,fig_name):
     plt.ylabel('speed(kph)', fontsize=24)
     plt.legend()
     plt.xlim([t[0] + 3, t[-1]])
-    plt.ylim([0,80])
+    plt.ylim([0,100])
 
     plt.savefig('traj_'+fig_name + '.png')
     plt.close()
 
-
 def convert_time_series_frequency(time_series,y_data,new_time_series):
     new_y_data=[]
-
     new_s_i=0
     for i in range(len(time_series)-1):
         interplot_start=time_series[i]
@@ -184,8 +195,13 @@ def fill_front_space_missing_signal(serie,high_threshold):
         else:
             interplot_end=serie[i]
             x_start=missing_index[0] - 1
-            slope = (interplot_end - interplot_start) / (i - x_start)
-            for m_i in missing_index:
-                serie[m_i] = interplot_start + (m_i - x_start) * slope
+            try:
+                slope = (interplot_end - interplot_start) / (i - x_start)
+                for m_i in missing_index:
+                    serie[m_i] = interplot_start + (m_i - x_start) * slope
+            except:
+                for m_i in missing_index:
+                    serie[m_i] = interplot_end
+
             missing_index=[]
     return serie
