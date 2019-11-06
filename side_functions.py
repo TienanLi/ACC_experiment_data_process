@@ -109,7 +109,7 @@ def draw_traj(speed_time,speed,front_space_time,front_space,relative_speed,fig_n
     for i in range(len(d)-1):
         d_LV_derived.append(d_LV_derived[i]+(v[i]+r_v[i])/3.6*0.01)
     t_ita,ita=cal_ita(t,d_LV,t,d,sim_freq=0.01,w=5,k=0.1333)
-    t_ita_derived,t_ita_derived=cal_ita(t,d_LV_derived,t,d,sim_freq=0.01,w=5,k=0.1333)
+    t_ita_derived,ita_derived=cal_ita(t,d_LV_derived,t,d,sim_freq=0.01,w=5,k=0.1333)
 
 
     v_LV_measured=[v[i]+r_v[i] for i in range(len(v))]
