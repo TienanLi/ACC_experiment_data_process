@@ -58,5 +58,5 @@ if __name__ == '__main__':
     # global set
     # set=2
 
-    for set in range(1,14):
+    for set in range(4,14):
       main() #The beginning of the program. It goes to the def main() function,
