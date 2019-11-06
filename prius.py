@@ -32,7 +32,7 @@ def analyze_LEAD_INFO(message_array):
         operation_time.append(m[0])
     draw_fig(operation_time,'',lead_rel_speed,'relative speed (m per second)')
     draw_fig(operation_time,'',lead_long_dist,'space (m)')
-    return operation_time,lead_long_dist
+    return operation_time,lead_long_dist,lead_rel_speed
 
 def analyze_PCM_CRUISE_2(message_array):
     cruise_active=[]

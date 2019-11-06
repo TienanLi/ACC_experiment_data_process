@@ -6,41 +6,36 @@ def main():
     #run 1: 1 set - data in still, message ID at 1
     #run 2: 3 set - data in highway, message ID at 1
     #run 3: 1 set - example data download from cabana, message ID at 1
-    #run 4: 1 Toyota data, message ID at 5: set 3,4,5 preliminary; set
-    global run
-    run=4
-    global set
-    set=8
+    #run 4: 1 Toyota data, message ID at 5: set 3,4,5 preliminary; set 6,7,8 large headway; 9 medium headway；10，11，12,13,14 small headway
+    messeage_ID_location=5
+    model='prius'
+    if run==5:
+        model='carolla'
+    if run<=3:
+        model='civic'
+        messeage_ID_location=1
 
-    messeage_ID_location=1
-    model='civic'
-    if run==4:
-        messeage_ID_location=5
-        model='prius'
     messeage_dict=read_data_from_csv('\\data\\%s\\output%s_%s.csv' % (model,run, set),
                                      messeage_ID_location)
     # analyze_civic(messeage_dict)
-    analyze_prius(messeage_dict)
+    analyze_prius(messeage_dict,model)
 
 
-def analyze_prius(messeage_dict):
-    STEER_ANGLE_SENSOR = messeage_dict[37]
-    prius.analyze_STEER_ANGLE_SENSOR(STEER_ANGLE_SENSOR)
+def analyze_prius(messeage_dict,model_name):
+    # STEER_ANGLE_SENSOR = messeage_dict[37]
+    # prius.analyze_STEER_ANGLE_SENSOR(STEER_ANGLE_SENSOR)
 
     LEAD_INFO=messeage_dict[466]
-    ACC_ready_ts,ACC_ready=prius.analyze_PCM_CRUISE(LEAD_INFO)
-    LEAD_INFO=messeage_dict[467]
-    ACC_using_ts,ACC_using=prius.analyze_PCM_CRUISE_2(LEAD_INFO)
+    ACC_using_ts,ACC_using=prius.analyze_PCM_CRUISE(LEAD_INFO)
+    # LEAD_INFO=messeage_dict[467]
+    # ACC_ready_ts,ACC_ready=prius.analyze_PCM_CRUISE_2(LEAD_INFO)
 
     SPEED=messeage_dict[180]
     speed_time_series,speed=prius.analyze_SPEED(SPEED)
     LEAD_INFO=messeage_dict[742]
-    front_space_time_series,front_space=prius.analyze_LEAD_INFO(LEAD_INFO)
+    LEAD_INFO_time_series,front_space,relative_speed=prius.analyze_LEAD_INFO(LEAD_INFO)
 
-
-    #
-    #
-    # draw_traj(speed_time_series,speed,front_space_time_series,front_space,str(run)+'_'+str(set))
+    draw_traj(speed_time_series,speed,LEAD_INFO_time_series,front_space,relative_speed,'figures/'+str(run)+'_'+str(set))
 
 
 def analyze_civic(messeage_dict):
@@ -58,4 +53,10 @@ def analyze_civic(messeage_dict):
     # civic.analyze_SEATBELT_STATUS(SEATBELT_STATUS)
 
 if __name__ == '__main__':
-    main() #The beginning of the program. It goes to the def main() function,
+    global run
+    run=4
+    # global set
+    # set=2
+
+    for set in range(1,14):
+      main() #The beginning of the program. It goes to the def main() function,

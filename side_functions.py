@@ -66,13 +66,14 @@ def read_data_from_csv(file_name,message_ID_location):
             except:
                 message_length = 0
         elif message_ID_location==5:
-            if len(tmp) < 8:
+            try:
+                time=int(tmp[0])*60*60+int(tmp[1])*60+int(tmp[2])+int(tmp[3])/1e6
+                BUS=tmp[4]
+                message_ID=int(tmp[5].replace('L',''), 16)
+                message=tmp[6]
+                message_length=tmp[7]
+            except:
                 break
-            time=int(tmp[0])*60*60+int(tmp[1])*60+int(tmp[2])+int(tmp[3])/1e6
-            BUS=tmp[4]
-            message_ID=int(tmp[5].replace('L',''), 16)
-            message=tmp[6]
-            message_length=tmp[7]
 
 
         if message_ID in information.keys():
@@ -87,7 +88,7 @@ def read_data_from_csv(file_name,message_ID_location):
     fo.close()
     return information
 
-def draw_traj(speed_time,speed,front_space_time,front_space,fig_name):
+def draw_traj(speed_time,speed,front_space_time,front_space,relative_speed,fig_name):
 
     original_location=[0]
     for i in range(len(speed)-1):
@@ -101,40 +102,53 @@ def draw_traj(speed_time,speed,front_space_time,front_space,fig_name):
     d=convert_time_series_frequency(speed_time,original_location,t)
     front_space=fill_front_space_missing_signal(front_space,high_threshold=200)
     space=convert_time_series_frequency(front_space_time,front_space,t)
+    r_v=convert_time_series_frequency(front_space_time,relative_speed,t)
     draw_fig(t,'',space,'revised space (m)')
-
     d_LV=[d[i]+space[i] for i in range(len(d))]
-    v_LV=[(d_LV[i+1]-d_LV[i])/0.01*3.6 for i in range(len(d_LV)-1)]
-    v_LV.append(v_LV[-1])
-    v_LV=moving_average(v_LV,200)
+    d_LV_derived=[d[0]+space[0]]
+    for i in range(len(d)-1):
+        d_LV_derived.append(d[i]+(v[i]+r_v[i])/3.6*0.01)
     t_ita,ita=cal_ita(t,d_LV,t,d,sim_freq=0.01,w=5,k=0.1333)
+    t_ita_derived,t_ita_derived=cal_ita(t,d_LV_derived,t,d,sim_freq=0.01,w=5,k=0.1333)
+
+
+    v_LV_measured=[v[i]+r_v[i] for i in range(len(v))]
+    v_LV_derived = [(d_LV[i + 1] - d_LV[i-1]) / 0.01 * 3.6/2 for i in range(1,len(d_LV) - 1)]
+    v_LV_derived=[v_LV_derived[0]]+v_LV_derived+[v_LV_derived[-1]]
+    v_LV_derived = moving_average(v_LV_derived, 200)
 
 
     fig = plt.figure(figsize=(8, 12), dpi=300)
 
     ax = fig.add_subplot(311)
     plt.plot(t, d, color='r', label='FV')
-    plt.plot(t, d_LV, color='g', label='LV')
+    plt.plot(t, d_LV, color='g', label='LV (direct measured from spacing)')
+    plt.plot(t, d_LV_derived, color='c', label='LV (integrated from relative speed)')
+
     plt.ylabel('location(m)', fontsize=24)
     plt.legend()
     plt.xlim([t[0]+3,t[-1]])
 
     ax = fig.add_subplot(312)
-    plt.plot(t_ita, ita, color='b')
+    plt.plot(t_ita, ita, color='b',label='direct measured from spacing')
+    plt.plot(t_ita_derived, t_ita_derived, color='c', label='integrated from relative speed')
     plt.ylabel(r'$\eta$', fontsize=24)
     plt.xlim([t[0]+3, t[-1]])
     plt.ylim([0.5,2])
+    plt.legend()
 
     ax = fig.add_subplot(313)
     plt.plot(t, v, color='r', label='FV')
-    plt.plot(t, v_LV, color='g', label='LV(derived from location)')
+    plt.plot(t, v_LV_derived, color='g', label='LV (derived from distance)')
+    plt.plot(t, v_LV_measured, color='c', label='LV (direct measured from radar)')
+
     plt.xlabel('time (s)', fontsize=24)
     plt.ylabel('speed(kph)', fontsize=24)
     plt.legend()
     plt.xlim([t[0] + 3, t[-1]])
     plt.ylim([0,100])
 
-    plt.savefig('traj_'+fig_name + '.png')
+    plt.savefig(fig_name + '.png')
     plt.close()
 
 def convert_time_series_frequency(time_series,y_data,new_time_series):
@@ -205,3 +219,4 @@ def fill_front_space_missing_signal(serie,high_threshold):
 
             missing_index=[]
     return serie
+
