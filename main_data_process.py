@@ -14,7 +14,7 @@ def main():
     if run<=3:
         model='civic'
         messeage_ID_location=1
-
+    print('run:',run,'set:',set)
     messeage_dict=read_data_from_csv('\\data\\%s\\output%s_%s.csv' % (model,run, set),
                                      messeage_ID_location)
     # analyze_civic(messeage_dict)

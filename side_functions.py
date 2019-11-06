@@ -123,15 +123,15 @@ def draw_traj(speed_time,speed,front_space_time,front_space,relative_speed,fig_n
     ax = fig.add_subplot(311)
     plt.plot(t, d, color='r', label='FV')
     plt.plot(t, d_LV, color='g', label='LV (direct measured from spacing)')
-    plt.plot(t, d_LV_derived, color='c', label='LV (integrated from relative speed)')
+    plt.plot(t, d_LV_derived, color='k', label='LV (integrated from relative speed)')
 
     plt.ylabel('location(m)', fontsize=24)
     plt.legend()
     plt.xlim([t[0]+3,t[-1]])
 
     ax = fig.add_subplot(312)
-    plt.plot(t_ita, ita, color='b',label='direct measured from spacing')
-    plt.plot(t_ita_derived, t_ita_derived, color='c', label='integrated from relative speed')
+    plt.plot(t_ita, ita, color='g',label='direct measured from spacing')
+    plt.plot(t_ita_derived, ita_derived, color='k', label='integrated from relative speed')
     plt.ylabel(r'$\eta$', fontsize=24)
     plt.xlim([t[0]+3, t[-1]])
     plt.ylim([0.5,2])
@@ -140,7 +140,7 @@ def draw_traj(speed_time,speed,front_space_time,front_space,relative_speed,fig_n
     ax = fig.add_subplot(313)
     plt.plot(t, v, color='r', label='FV')
     plt.plot(t, v_LV_derived, color='g', label='LV (derived from distance)')
-    plt.plot(t, v_LV_measured, color='c', label='LV (direct measured from radar)')
+    plt.plot(t, v_LV_measured, color='k', label='LV (direct measured from radar)')
 
     plt.xlabel('time (s)', fontsize=24)
     plt.ylabel('speed(kph)', fontsize=24)
