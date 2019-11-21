@@ -1,4 +1,4 @@
-from side_functions import hex_to_byte,draw_fig
+from base_functions import hex_to_int,hex_to_byte,draw_fig
 
 def analyze_GAS_PEDAL_2(message_array):
     torque_estimate=[]

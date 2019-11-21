@@ -1,62 +1,61 @@
-import civic
-import prius
-from side_functions import read_data_from_csv,draw_traj
+from side_functions import read_data_from_csv,get_ID_loc_and_model,read_two_vehicle_data,analyze_and_draw,analyze_and_draw_2
+import pickle
+import os
 
 def main():
-    #run 1: 1 set - data in still, message ID at 1
-    #run 2: 3 set - data in highway, message ID at 1
-    #run 3: 1 set - example data download from cabana, message ID at 1
-    #run 4: 1 Toyota data, message ID at 5: set 3,4,5 preliminary; set 6,7,8 large headway; 9 medium headway；10，11，12,13,14 small headway
-    messeage_ID_location=5
-    model='prius'
-    if run==5:
-        model='carolla'
-    if run<=3:
-        model='civic'
-        messeage_ID_location=1
-    print('run:',run,'set:',set)
-    messeage_dict=read_data_from_csv('\\data\\%s\\output%s_%s.csv' % (model,run, set),
-                                     messeage_ID_location)
-    # analyze_civic(messeage_dict)
-    analyze_prius(messeage_dict,model)
+    if run.isdigit():
+        ID=int(run)
+    else:
+        ID=int(run.split('_')[0])
+    messeage_ID_location, model = get_ID_loc_and_model(ID)
+    if ID<=8 or ID>=11:
+        print('set:', set)
+        try:
+            fo=open(os.path.dirname(__file__) + '\\data\\%s\\run_%s_set_%s'  % (model, run, set),'rb')
+            messeage_dict=pickle.load(fo)
+            fo.close()
+        except:
+            messeage_dict = read_data_from_csv('\\data\\%s\\output%s_%s.csv' % (model, run, set),
+                                               messeage_ID_location)
+            fo=open(os.path.dirname(__file__) + '\\data\\%s\\run_%s_set_%s'  % (model, run, set),'wb')
+            pickle.dump(messeage_dict,fo)
+        analyze_and_draw(messeage_dict, model, run, set)
 
+    elif ID==9:
+        messeage_dict = read_data_from_csv('\\data\\prius\\two_vehicle\\output%s_%s.csv' % (run, set),
+                                           5)
+        print('set:', set)
+        analyze_and_draw(messeage_dict, 'prius', run, set)
 
-def analyze_prius(messeage_dict,model_name):
-    # STEER_ANGLE_SENSOR = messeage_dict[37]
-    # prius.analyze_STEER_ANGLE_SENSOR(STEER_ANGLE_SENSOR)
-
-    LEAD_INFO=messeage_dict[466]
-    ACC_using_ts,ACC_using=prius.analyze_PCM_CRUISE(LEAD_INFO)
-    # LEAD_INFO=messeage_dict[467]
-    # ACC_ready_ts,ACC_ready=prius.analyze_PCM_CRUISE_2(LEAD_INFO)
-
-    SPEED=messeage_dict[180]
-    speed_time_series,speed=prius.analyze_SPEED(SPEED)
-    LEAD_INFO=messeage_dict[742]
-    LEAD_INFO_time_series,front_space,relative_speed=prius.analyze_LEAD_INFO(LEAD_INFO)
-
-    draw_traj(speed_time_series,speed,LEAD_INFO_time_series,front_space,relative_speed,'figures/'+str(run)+'_'+str(set))
-
-
-def analyze_civic(messeage_dict):
-    ENGINE_DATA=messeage_dict['0x158']
-    civic.analyze_ENGINE_DATA(ENGINE_DATA)
-    KINEMATICS = messeage_dict['0x94'] # this is to get longi_accel
-    civic.analyze_KINEMATICS(KINEMATICS)
-    # GAS_PEDAL_2=messeage_dict['0x130']
-    # civic.analyze_GAS_PEDAL_2(GAS_PEDAL_2)
-    # POWERTRAIN_DATA=messeage_dict['0x17c']
-    # civic.analyze_POWERTRAIN_DATA(POWERTRAIN_DATA)
-    # STANDSTILL=messeage_dict['0x1b0']
-    # civic.analyze_STANDSTILL(STANDSTILL)
-    # SEATBELT_STATUS=messeage_dict['0x305']
-    # civic.analyze_SEATBELT_STATUS(SEATBELT_STATUS)
+        # try:
+        #     fo=open(os.path.dirname(__file__) + '\\data\\prius\\two_vehicle\\run_%s' % run,'rb')
+        #     messeage_dict_all=pickle.load(fo)
+        #     fo.close()
+        # except:
+        #     messeage_dict_all=read_two_vehicle_data('\\data\\prius\\two_vehicle\\',run,'l','f')
+        #     fo=open(os.path.dirname(__file__) + '\\data\\prius\\two_vehicle\\run_%s' % run,'wb')
+        #     pickle.dump(messeage_dict_all,fo)
+        #     fo.close()
+        # analyze_and_draw_2(messeage_dict_all,run,'l','f')
+    else:
+        messeage_dict = read_data_from_csv('\\data\\prius\\three_vehicle\\output%s_%s.csv' % (run, set),
+                                           5)
+        print('set:', set)
+        analyze_and_draw(messeage_dict, 'prius', run, set)
+    #     try:
+    #         fo=open(os.path.dirname(__file__) + '\\data\\prius\\three_vehicle\\run_%s' % run,'rb')
+    #         messeage_dict_all=pickle.load(fo)
+    #         fo.close()
+    #     except:
+    #         messeage_dict_all=read_two_vehicle_data('\\data\\prius\\three_vehicle\\',run,'m','f')
+    #         fo=open(os.path.dirname(__file__) + '\\data\\prius\\three_vehicle\\run_%s' % run,'wb')
+    #         pickle.dump(messeage_dict_all,fo)
+    #         fo.close()
+    #     analyze_and_draw_2(messeage_dict_all,run,'m','f')
 
 if __name__ == '__main__':
     global run
-    run=4
-    # global set
-    # set=2
-
-    for set in range(4,14):
-      main() #The beginning of the program. It goes to the def main() function,
+    run='13'
+    global set
+    for set in range(3,4):
+        main() #The beginning of the program. It goes to the def main() function,
