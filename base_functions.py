@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
-
+import numpy as np
+import pandas as pd
 
 def draw_fig(x,x_label,y,y_label):
     fig = plt.figure(figsize=(8, 8), dpi=300)
@@ -55,3 +56,136 @@ def convert_time_series_frequency(time_series,y_data,new_time_series):
         if new_s_i >= len(new_time_series):
             break
     return new_y_data
+
+
+def cal_ita(t,d,t_f,d_f,sim_freq,w,k):
+    ita=[]
+    t_ita=[]
+    for i in range(len(t_f)):
+        try:
+            r=range(int(max(0, (w_function(t_f[i]-t[0], w, 1, k)-3)  / sim_freq)),
+                      int(min(len(t_f), (w_function(t_f[i]-t[0], w, 1, k)+3) / sim_freq)))
+            y_list=[abs(-w*(t[j]-t_f[i])+d_f[i]-d[j]) for j in r]
+            tau_i=t_f[i]-(y_list.index(min(y_list))*sim_freq+t[r[0]])
+            eta=tau_i * ((1 / k / w))
+            # eta = tau_i
+            if eta>5 or eta<0:
+                eta=np.nan
+            ita.append(eta)
+            t_ita.append(t_f[i])
+        except:
+            break
+    return t_ita,ita
+
+def w_function(x,w,ita,k):
+    y=(x-(1 / w / k)*ita)
+    return y
+
+def moving_average(a, n) :
+    n=int(n)
+    avg_list=pd.Series(a).rolling(n, min_periods=int(n / 5)).mean().tolist()
+    avg_list=avg_list[int(n/2):]+[np.nan for i in range(int(n))]
+    avg_list=avg_list[:len(a)]
+    return avg_list
+
+def find_nearest_index(time_serires,point):
+    series_a=[abs(ts-point) for ts in time_serires]
+    return series_a.index(min(series_a))
+
+def fill_front_space_missing_signal(serie,expected_frequency,high_threshold):
+    missing_index=[]
+    unnormal_threshold=100/expected_frequency
+    unnormal=False
+    unnormal_down=False
+
+    # if serie[0]>=high_threshold:
+    #     missing_index.append(0)
+    for i in range(1,len(serie)):
+        if  (not unnormal_down) and (serie[i] - serie[i - 1]) >= unnormal_threshold:
+            unnormal=True
+        if  (not unnormal) and(serie[i] - serie[i - 1]) <= - unnormal_threshold:
+            unnormal_down=True
+        if unnormal and (serie[i] - serie[i - 1]) <= -unnormal_threshold:
+            unnormal=False
+        if unnormal_down and (serie[i] - serie[i - 1]) >= unnormal_threshold:
+            unnormal_down=False
+        if unnormal or unnormal_down:
+            missing_index.append(i)
+        else:
+            if len(missing_index) == 0:
+                interplot_start = serie[i]
+            else:
+                interplot_end=serie[i]
+                x_start=missing_index[0] - 1
+                try:
+                    slope = (interplot_end - interplot_start) / (i - x_start)
+                    if abs(slope)>(3/expected_frequency):
+                        missing_index.append(i)
+                        if (serie[i] - serie[i - 1]) >= unnormal_threshold:
+                            unnormal_down = True
+                        if (serie[i] - serie[i - 1]) <= -unnormal_threshold:
+                            unnormal = True
+                    else:
+                        for m_i in missing_index:
+                            serie[m_i] = interplot_start + (m_i - x_start) * slope
+                        missing_index = []
+                except:
+                    for m_i in missing_index:
+                        serie[m_i] = interplot_end
+                    missing_index=[]
+
+    return serie
+
+
+def get_ID_loc_and_model(run):
+    messeage_ID_location=5
+    model='prius'
+    if run==5|7:
+        model='carolla'
+    if run<=3:
+        model='civic'
+        messeage_ID_location=1
+    # print('run:',run)
+    return messeage_ID_location,model
+
+
+def divide_traj(traj,expected_frequency,period_length):
+    period_length=period_length*expected_frequency
+    if len(traj[0])<=period_length:
+        return [traj]
+    divided_traj=[]
+    i=0
+    while True:
+        s=i*int(period_length*0.75)
+        e=s+period_length
+        if e>(len(traj[0])-period_length):
+            divided_traj.append([i[s:] for i in traj])
+            break
+        else:
+            divided_traj.append([i[s:e] for i in traj])
+        i+=1
+
+    return divided_traj
+
+
+def ACC_in_use(speed_time_series,speed,LEAD_INFO_time_series,front_space,relative_speed,ACC_using_ts,ACC_using):
+    traj_pair=[]
+    start = 0
+    for i in range(len(ACC_using)-1):
+        if ACC_using[i]==0 and ACC_using[i+1]==1:
+            start=i
+        elif ACC_using[i]==1 and ACC_using[i+1]==0:
+            end=i
+            if ACC_using_ts[end]-ACC_using_ts[start]>30:
+                traj_pair.append((ACC_using_ts[start],ACC_using_ts[end]))
+    end=len(ACC_using)-1
+    if min(ACC_using_ts[end],speed_time_series[-1],LEAD_INFO_time_series[-1]) - max(ACC_using_ts[start],speed_time_series[0],LEAD_INFO_time_series[0]) > 25:
+        traj_pair.append((max(ACC_using_ts[start],speed_time_series[0],LEAD_INFO_time_series[0]), min(ACC_using_ts[end],speed_time_series[-1],LEAD_INFO_time_series[-1])))
+    traj_info=[]
+    for p in traj_pair:
+        ss=find_nearest_index(speed_time_series, p[0])
+        se=find_nearest_index(speed_time_series, p[1])
+        ls=find_nearest_index(LEAD_INFO_time_series, p[0])
+        le=find_nearest_index(LEAD_INFO_time_series, p[1])
+        traj_info.append((speed_time_series[ss:se],speed[ss:se],LEAD_INFO_time_series[ls:le],front_space[ls:le],relative_speed[ls:le]))
+    return traj_info
