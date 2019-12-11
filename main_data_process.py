@@ -32,10 +32,10 @@ def main():
 if __name__ == '__main__':
     global run
     global set
-    for run in [str(i) for i in range(11,12)]:
-        for set in range(3,9):
-            try:
-                main() #The beginning of the program. It goes to the def main() function,
-            except:
-                print('this set not exists')
-            # main() #The beginning of the program. It goes to the def main() function,
+    for run in [str(i) for i in range(16,17)]:
+        for set in range(3,5):
+            # try:
+            #     main() #The beginning of the program. It goes to the def main() function,
+            # except:
+            #     print('this set not exists')
+            main()

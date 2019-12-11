@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from sklearn import linear_model
+from scipy import stats
 
 def draw_fig(x,x_label,y,y_label):
     fig = plt.figure(figsize=(8, 8), dpi=300)
@@ -92,11 +94,9 @@ def find_nearest_index(time_serires,point):
     series_a=[abs(ts-point) for ts in time_serires]
     return series_a.index(min(series_a))
 
-def fill_front_space_missing_signal(serie,expected_frequency,high_threshold):
+def fill_front_space_missing_signal(serie,expected_frequency,high_threshold,unnormal=False,unnormal_down=False):
     missing_index=[]
-    unnormal_threshold=100/expected_frequency
-    unnormal=False
-    unnormal_down=False
+    unnormal_threshold=250/expected_frequency
 
     # if serie[0]>=high_threshold:
     #     missing_index.append(0)
@@ -118,8 +118,13 @@ def fill_front_space_missing_signal(serie,expected_frequency,high_threshold):
                 interplot_end=serie[i]
                 x_start=missing_index[0] - 1
                 try:
+                    if x_start==0:
+                       for m_i in missing_index:
+                           serie[m_i] = interplot_end
+                       missing_index=[]
+                       continue
                     slope = (interplot_end - interplot_start) / (i - x_start)
-                    if abs(slope)>(3/expected_frequency):
+                    if abs(slope)>(3/expected_frequency) and abs(interplot_start-interplot_end)>5:
                         missing_index.append(i)
                         if (serie[i] - serie[i - 1]) >= unnormal_threshold:
                             unnormal_down = True
@@ -129,11 +134,13 @@ def fill_front_space_missing_signal(serie,expected_frequency,high_threshold):
                         for m_i in missing_index:
                             serie[m_i] = interplot_start + (m_i - x_start) * slope
                         missing_index = []
+
                 except:
                     for m_i in missing_index:
                         serie[m_i] = interplot_end
                     missing_index=[]
-
+    # if unnormal_down==True:
+    #     serie=fill_front_space_missing_signal(serie,expected_frequency,high_threshold,unnormal=True)
     return serie
 
 
@@ -147,6 +154,28 @@ def get_ID_loc_and_model(run):
         messeage_ID_location=1
     # print('run:',run)
     return messeage_ID_location,model
+
+def get_group_info():
+    group_info={}
+    group_info['11']=('high','power')
+    group_info['12']=('high','eco')
+    group_info['13']=('middle','power')
+    group_info['14']=('middle','eco')
+    group_info['15']=('low','power')
+    group_info['16']=('low','eco')
+    group_info['17']=('middle','power')
+
+    return group_info
+
+def get_speed_range(run):
+    group_info=get_group_info()
+    if group_info[run][0]=='high':
+        speed_range=[60,110]
+    elif group_info[run][0] == 'middle':
+        speed_range=[30,80]
+    else:
+        speed_range=[0,30]
+    return speed_range
 
 
 def divide_traj(traj,expected_frequency,period_length):
@@ -189,3 +218,22 @@ def ACC_in_use(speed_time_series,speed,LEAD_INFO_time_series,front_space,relativ
         le=find_nearest_index(LEAD_INFO_time_series, p[1])
         traj_info.append((speed_time_series[ss:se],speed[ss:se],LEAD_INFO_time_series[ls:le],front_space[ls:le],relative_speed[ls:le]))
     return traj_info
+
+def linear_regression(X,Y):
+    X=np.array(X).reshape(len(X),1)
+    Y=np.array(Y).reshape(len(Y),1)
+    regr = linear_model.LinearRegression()
+    regr.fit(X, Y)
+    y_pred = regr.predict(X)
+
+    params = np.append(regr.intercept_, regr.coef_)
+    params = np.round(params, 2)
+
+    newX = np.append(np.ones((len(X),1)), X, axis=1)
+    MSE = (sum((Y-y_pred)**2))/(len(newX)-len(newX[0]))
+    var_b = MSE * (np.linalg.inv(np.dot(newX.T, newX)).diagonal())
+    sd_b = np.sqrt(var_b)
+    ts_b = params / sd_b
+    p_values = [2 * (1 - stats.t.cdf(np.abs(i), (len(newX) - 1))) for i in ts_b]
+
+    return params[1],params[0],p_values[1]

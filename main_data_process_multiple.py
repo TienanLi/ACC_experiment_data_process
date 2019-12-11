@@ -1,4 +1,4 @@
-from side_function_for_multiple import read_two_vehicle_data,analyze_and_draw_2
+from Analyze_functions_multiple_veh import read_two_vehicle_data,analyze_and_draw_2,analyze_and_draw_3
 import pickle
 import os
 
@@ -28,9 +28,9 @@ def main():
             fo=open(os.path.dirname(__file__) + '\\data\\prius\\three_vehicle\\run_%s' % run,'wb')
             pickle.dump(messeage_dict_all,fo)
             fo.close()
-        analyze_and_draw_2(messeage_dict_all,run,'m','f')
+        analyze_and_draw_3(messeage_dict_all,run,'m','f')
 
 if __name__ == '__main__':
     global run
-    for run in [str(i) for i in range(9,11)]:
+    for run in [str(i) for i in range(10,11)]:
         main() #The beginning of the program. It goes to the def main() function,
