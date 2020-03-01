@@ -100,7 +100,7 @@ def fill_front_space_missing_signal(serie,expected_frequency,high_threshold,unno
 
     # if serie[0]>=high_threshold:
     #     missing_index.append(0)
-    for i in range(1,len(serie)):
+    for i in range(1*expected_frequency,len(serie)):
         if  (not unnormal_down) and (serie[i] - serie[i - 1]) >= unnormal_threshold:
             unnormal=True
         if  (not unnormal) and(serie[i] - serie[i - 1]) <= - unnormal_threshold:
@@ -170,11 +170,11 @@ def get_group_info():
 def get_speed_range(run):
     group_info=get_group_info()
     if group_info[run][0]=='high':
-        speed_range=[60,110]
+        speed_range=[10,30]
     elif group_info[run][0] == 'middle':
-        speed_range=[30,80]
+        speed_range=[8,20]
     else:
-        speed_range=[0,30]
+        speed_range=[0,8]
     return speed_range
 
 
@@ -185,7 +185,7 @@ def divide_traj(traj,expected_frequency,period_length):
     divided_traj=[]
     i=0
     while True:
-        s=i*int(period_length*0.75)
+        s=i*int(period_length*0.8)
         e=s+period_length
         if e>(len(traj[0])-period_length):
             divided_traj.append([i[s:] for i in traj])

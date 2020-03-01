@@ -9,9 +9,14 @@ from eta_functions import eta_pattern,best_ita_parameter
 from oscillation_functions import oscillation_statistics,save_oscillations,traj_by_oscillation
 from matplotlib.collections import LineCollection
 import matplotlib.cm as pcm
+from matplotlib import rc
 
 global expected_frequency
 expected_frequency = 100
+
+font = {'family': 'DejaVu Sans',
+        'size': 14}
+rc('font', **font)
 
 def read_data_from_csv(file_name,message_ID_location):
     information={}
@@ -70,33 +75,33 @@ def analyze_and_draw(messeage_dict,model,run,set):
         # continue
         oscillations_LV=oscillation_statistics(t,v_LV_derived,expected_frequency,fluent=False)
         oscillations_FV=oscillation_statistics(t,v,expected_frequency,fluent=True)
-        oscillations_FV,oscillations_LV=save_oscillations(oscillations_FV,oscillations_LV,run,set,part)
+        # oscillations_FV,oscillations_LV=save_oscillations(oscillations_FV,oscillations_LV,run,set,part)
         print(run, set, part)
-        continue
-        # divided_traj=divide_traj([t, v, d, v_LV_derived, d_LV, t_ita, ita],expected_frequency,period_length=60)
-        divided_traj=traj_by_oscillation([t, v, d, v_LV_derived, d_LV, t_ita, ita],oscillations_FV,extended_time=40)
+        # divided_traj=divide_traj([t, v, d, v_LV_derived, d_LV, t_ita, ita],expected_frequency,period_length=50)
+        divided_traj=traj_by_oscillation([t, v, d, v_LV_derived, d_LV, t_ita, ita],oscillations_FV,extended_time=20)
         split=1
         for (t, v, d, v_LV_derived, d_LV, t_ita, ita) in divided_traj:
-            # save_traj_info(t, v, d, v_LV_derived, d_LV, run, set, part, split)
+            save_traj_info(t, v, d, v_LV_derived, d_LV, run, set, part, split)
             try:
-                os.stat('figures/' + str(run) +'/based on oscillation - no eta pattern/')
+                os.stat('figures/' + str(run) +'/')
             except:
-                os.mkdir('figures/' + str(run) +'/based on oscillation - no eta pattern/')
+                os.mkdir('figures/' + str(run) +'/')
             draw_traj(t, v, d, v_LV_derived, d_LV, t_ita, ita,oscillations_FV,oscillations_LV,
-                      'figures/' + str(run) +'/based on oscillation - no eta pattern/'+str(run)+'_' + str(set) + '_part' + str(part)+'_oscillation'+str(split),run,set,split)
+                      'figures/' + str(run) +'/'+str(run)+'_' + str(set) + '_part' + str(part)+'_oscillation'+str(split),run,set,split)
             split+=1
         part += 1
 
 
 def traj_derivation(traj):
+    moving_window=2
     veh_length=5
     (speed_time, speed, front_space_time, front_space, relative_speed)=traj
+    v = [s/3.6 for s in speed]#m/s
     original_location = [0]
     for i in range(len(speed) - 1):
-        forward = (speed_time[i + 1] - speed_time[i]) * speed[i] / 3.6
+        forward = (speed_time[i + 1] - speed_time[i]) * v[i]
         original_location.append(original_location[-1] + forward)  # in meter
     t = speed_time
-    v = speed
     d = original_location
     draw_fig(t, '', front_space, 'space(m)')
     front_space = fill_front_space_missing_signal(front_space,expected_frequency, high_threshold=100)
@@ -114,9 +119,9 @@ def traj_derivation(traj):
     t_ita, ita = cal_ita(t, d_LV, t, d, sim_freq=1/expected_frequency, w=5, k=.2)
     # t_ita_derived,ita_derived=cal_ita(t,d_LV_derived,t,d,sim_freq=0.01,w=5,k=0.1333)
     # v_LV_measured=[v[i]+r_v[i] for i in range(len(v))]
-    v_LV_derived = [(d_LV[i + 1] - d_LV[i - 1]) * expected_frequency * 3.6 / 2 for i in range(1, len(d_LV) - 1)]
+    v_LV_derived = [(d_LV[i + 1] - d_LV[i - 1]) * expected_frequency / 2 for i in range(1, len(d_LV) - 1)]
     v_LV_derived = [v_LV_derived[0]] + v_LV_derived + [v_LV_derived[-1]]
-    v_LV_derived = moving_average(v_LV_derived, 2*expected_frequency)
+    v_LV_derived = moving_average(v_LV_derived, moving_window*expected_frequency)
     v_LV_derived = [max(vlv,0) for vlv in v_LV_derived]
     return t,v,d,v_LV_derived,d_LV,t_ita,ita
 
@@ -134,9 +139,9 @@ def draw_traj(t,v,d,v_LV_derived,d_LV,t_ita,ita,oscillations_FV,oscillationS_LV,
     # print(run, set, split, round(tau0, 2), round(tau_min, 2), round(tau_max, 2), round(tau1, 2), int(ep0), int(ep1), int(ep2))
 
     speed_range=get_speed_range(run)
-    fig = plt.figure(figsize=(8, 16), dpi=300)
+    fig = plt.figure(figsize=(8, 12), dpi=300)
     ax = fig.add_subplot(311)
-    ax.set_position([0.1, 0.675, 0.85, 0.25])
+    ax.set_position([0.15, 0.7, 0.82, 0.25])
     color_indicator = np.array(v)
     points = np.array([np.array(t), np.array(d)]).T.reshape(-1, 1, 2)
     segments = np.concatenate([points[:-1], points[1:]], axis=1)
@@ -153,19 +158,22 @@ def draw_traj(t,v,d,v_LV_derived,d_LV,t_ita,ita,oscillations_FV,oscillationS_LV,
     lc.set_array(color_indicator)
     lc.set_linewidth(1)
     line = ax.add_collection(lc)
-    plt.ylabel('location(m)', fontsize=24)
+    plt.ylabel('location(m)', fontsize=16)
     plt.ylim([min(d), max(d_LV)])
-    plt.xlim(t[0],t[-1])
+    plt.xlim(t[0]+3,t[-1])
+    plt.title(fig_name,fontsize=16)
+    ax.locator_params(nbins=5, axis='x')
+
     # plt.xlim([t[t0s_i], t[t1e_i]])
 
     cmap_jet = pcm.get_cmap('jet_r')
     sm = plt.cm.ScalarMappable(cmap=cmap_jet, norm=plt.Normalize(vmin=speed_range[0], vmax=speed_range[1]))
-    cbar = plt.colorbar(sm, orientation='horizontal', cax=plt.axes([0.2, 0.625, 0.65, 0.025]))
-    cbar.set_label('speed (kph)', fontsize=16)
+    cbar = plt.colorbar(sm, orientation='horizontal', cax=plt.axes([0.2, 0.65, 0.65, 0.025]))
+    cbar.set_label('speed (m/s)', fontsize=16)
 
     bx = fig.add_subplot(312)
-    bx.set_position([0.1, 0.325, 0.85, 0.25])
-    ita_range=[0,5]
+    bx.set_position([0.15, 0.35, 0.82, 0.25])
+    ita_range=[0,3]
     plt.plot(t_ita, ita, color='g',label='direct measured from radar')
     if regression:
         plt.plot([t[t0s_i], t[t0e_i], t_p, t_p_max, t[t1s_i], t[t1e_i]], [tau0, tau0, tau_min, tau_max, tau1, tau1], color='k', linewidth=2)
@@ -174,42 +182,44 @@ def draw_traj(t,v,d,v_LV_derived,d_LV,t_ita,ita,oscillations_FV,oscillationS_LV,
                  fontsize=16)
         plt.plot([t[t_min_i], t[t_min_i]], ita_range, color='k', linestyle='--', linewidth=1, alpha=.5)
         plt.plot([t[t_max_i], t[t_max_i]], ita_range, color='k', linestyle='--', linewidth=1, alpha=.5)
-    plt.ylabel(r'$\tau$', fontsize=24)
-    plt.xlim(t[0],t[-1])
+    plt.ylabel(r'$\tau$', fontsize=16)
+    plt.xlim(t[0]+3,t[-1])
+    bx.locator_params(nbins=5, axis='x')
 
     # plt.xlim([t[t0s_i], t[t1e_i]])
     plt.ylim(ita_range)
 
     cx = fig.add_subplot(313)
-    cx.set_position([0.1, 0.05, 0.85, 0.25])
-    plt.plot(t, v, color='r', label='FV')
-    plt.plot(t, v_LV_derived, color='g', label='LV')
+    cx.set_position([0.15, 0.075, 0.82, 0.225])
+    plt.plot(t, v, color='r', label='Follower')
+    plt.plot(t, v_LV_derived, color='g', label='Leader')
     t_shift = [t[x] + 1.87 * ita[x] for x in range(len(t))]
     # plt.plot(t_shift, v_LV_derived, color='b', linestyle='--', label='shifted LV')
+    cx.locator_params(nbins=5, axis='x')
 
     if regression:
         plt.plot([t[t_min_i], t[t_min_i]], speed_range, color='k', linestyle='--', linewidth=1, alpha=.5)
         plt.plot([t[t_max_i], t[t_max_i]], speed_range, color='k', linestyle='--', linewidth=1, alpha=.5)
     # plt.plot(t, v_LV_measured, color='k', label='LV (direct measured from radar)')
     for o in oscillations_FV:
-        plt.scatter(o[6],o[7],color='r')
-        plt.scatter(o[8],o[9],color='r')
-        plt.scatter(o[2],o[3],color='r')
-        plt.scatter(o[4],o[5],color='r')
+        plt.scatter(o[6],o[7],color='r',s=60)
+        plt.scatter(o[8],o[9],color='r',s=60)
+        plt.scatter(o[2],o[3],color='r',s=60)
+        plt.scatter(o[4],o[5],color='r',s=60)
         # plt.text(o[2],o[3],str(o[12])+'s\nd=-'+str(o[13])+'$m/s^2$')
         # plt.text(o[4],o[5],str(o[14])+'s\na='+str(o[15])+'$m/s^2$')
         # plt.text(o[6],o[7],str(o[16])+'s')
-        plt.scatter(o[0],o[1],color='k',marker='*',s=36)
+        plt.scatter(o[0],o[1],color='k',marker='*',s=60)
     for o in oscillationS_LV:
-        plt.scatter(o[6],o[7],color='g')
-        plt.scatter(o[8],o[9],color='g')
-        plt.scatter(o[2],o[3],color='g')
-        plt.scatter(o[4],o[5],color='g')
-        plt.scatter(o[0],o[1],color='k',marker='*',s=36)
-    plt.xlabel('time (s)', fontsize=24)
-    plt.ylabel('speed(kph)', fontsize=24)
-    plt.legend(loc=4,fontsize=12)
-    plt.xlim(t[0],t[-1])
+        plt.scatter(o[6],o[7],color='g',s=60)
+        plt.scatter(o[8],o[9],color='g',s=60)
+        plt.scatter(o[2],o[3],color='g',s=60)
+        plt.scatter(o[4],o[5],color='g',s=60)
+        plt.scatter(o[0],o[1],color='k',marker='*',s=60)
+    plt.xlabel('time (s)', fontsize=20)
+    plt.ylabel('speed(m/s)', fontsize=20)
+    plt.legend(loc=4,fontsize=16)
+    plt.xlim(t[0]+3,t[-1])
 
     # plt.xlim([t[t0s_i], t[t1e_i]])
     plt.ylim(speed_range)
@@ -220,7 +230,7 @@ def save_traj_info(t, v, d, v_LV_derived, d_LV,run,set,part,sub,period=None):
     if period==None:
         # t=[tt-t[0] for tt in t]
         flink = open('traj_output/run_%s_set_%s_part_%s_oscillation_%s.csv'%(run,set,part,sub),'w')
-        flink.write('time stamp(sec),follower location(m),follower speed(km/h),leader location(m),leader speed(km/h)\n')
+        flink.write('time stamp(sec),follower location(m),follower speed(m/s),leader location(m),leader speed(m/s)\n')
         for i in range(len(t)):
             flink.write('%s,%s,%s,%s,%s\n' % (round(t[i],2), round(d[i],3), round(v[i],3), round(d_LV[i],3), round(v_LV_derived[i],3)))
         flink.close()

@@ -3,6 +3,7 @@ import os
 import numpy as np
 from base_functions import draw_fig,cal_ita,moving_average,divide_traj,find_nearest_index
 from Analyze_functions import read_data_from_csv,fill_front_space_missing_signal,analyze_CANBUS
+from matplotlib import rc
 
 global expected_frequency
 expected_frequency = 100
@@ -52,7 +53,7 @@ def analyze_and_draw_3(messeage_dict,run,front_name,follow_name):
             os.mkdir('figures_3/')
         for (time_series, f_speed, f_front_space, f_relative_speed, l_speed, l_front_space, l_relative_speed) in divided_traj:
             draw_traj_3(time_series,f_speed,f_front_space,f_relative_speed,l_speed,l_front_space,l_relative_speed,
-                        'figures_3/'+str(run)+'_part'+str(part)+'_split'+str(split))
+                        'figures_3/'+str(run)+'_part'+str(part))
             split+=1
         part += 1
 
@@ -142,6 +143,10 @@ def draw_traj_2(t,f_speed,f_front_space,f_relative_speed,l_speed,l_front_space,l
 
 
 def draw_traj_3(t,f_speed,f_front_space,f_relative_speed,l_speed,l_front_space,l_relative_speed,fig_name):
+    font = {'family': 'DejaVu Sans',
+            'size': 12}
+    rc('font', **font)
+
     v_smoothing=5
     veh_length=5
     d=[0]
@@ -178,14 +183,14 @@ def draw_traj_3(t,f_speed,f_front_space,f_relative_speed,l_speed,l_front_space,l
     # t_ita,ita=cal_ita(t,d_LV,t,d,sim_freq=0.01,w=5,k=0.2)
     # t_ita_LV,ita_LV=cal_ita(t,d_LV_of_LV,t,d_LV,sim_freq=0.01,w=5,k=0.2)
 
-    fig = plt.figure(figsize=(16, 8), dpi=300)
-    ax = fig.add_subplot(211)
-    plt.plot(t, d, color='r', label='FV')
-    plt.plot(t, d_LV, color='g', label='MV')
-    plt.plot(t, d_LV_of_LV, color='k', label='LV')
-    plt.ylabel('location(m)', fontsize=24)
-    plt.legend()
-    plt.xlim([t[0]+3,t[-1]])
+    fig = plt.figure(figsize=(8, 3), dpi=300)
+    # ax = fig.add_subplot(211)
+    # plt.plot(t, d, color='r', label='FV')
+    # plt.plot(t, d_LV, color='g', label='MV')
+    # plt.plot(t, d_LV_of_LV, color='k', label='LV')
+    # plt.ylabel('location(m)', fontsize=24)
+    # plt.legend()
+    # plt.xlim([t[0]+3,t[-1]])
 
     # ax = fig.add_subplot(312)
     # plt.plot(t_ita, ita, color='g',label='MV')
@@ -195,16 +200,17 @@ def draw_traj_3(t,f_speed,f_front_space,f_relative_speed,l_speed,l_front_space,l
     # plt.ylim([0.5,2])
     # plt.legend()
 
-    ax = fig.add_subplot(212)
-    plt.plot(t, f_speed, color='r', label='FV (measured itself on CANBUS)')
-    plt.plot(t, v_LV, color='g', label='MV (measured itself on CANBUS)')
-    plt.plot(t, v_LV_back_measured, color='b',linestyle='--', label='MV (derived from FV)')
-    plt.plot(t, v_LV_of_LV, color='k', linestyle='--',label='LV (derived from MV)')
-    plt.xlabel('time (s)', fontsize=24)
-    plt.ylabel('speed(kph)', fontsize=24)
-    plt.legend()
+    ax = fig.add_subplot(111)
+    ax.set_position([0.075, 0.2, 0.875, 0.75])
+    plt.plot(t, [fs/3.6 for fs in f_speed], color='r', label='Veh3(ACC)')
+    plt.plot(t, [fs/3.6 for fs in v_LV], color='g', label='Veh2(ACC)')
+    # plt.plot(t, v_LV_back_measured, color='b',linestyle='--', label='MV (derived from FV)')
+    plt.plot(t, [fs/3.6 for fs in v_LV_of_LV], color='b', label='Veh1')
+    plt.xlabel('time (s)', fontsize=12)
+    plt.ylabel('speed(m/s)', fontsize=12)
+    plt.legend(loc=4,fontsize=11)
     plt.xlim([t[0] + 3, t[-1]])
-    plt.ylim([max(0,np.mean(f_speed)-40),np.mean(f_speed)+40])
+    plt.ylim([max(0,np.mean([fs/3.6 for fs in f_speed])-15),np.mean([fs/3.6 for fs in f_speed])+10])
     plt.savefig(fig_name + '.png')
     plt.close()
 
@@ -255,7 +261,6 @@ def find_overlapping(traj_lead,traj_follow):
         time_period_follow.append((max(traj[0][0],traj[2][0]),min(traj[0][-1],traj[2][-1])))
         traj_follow_connect=[traj_follow_connect[i]+traj[i] for i in range(len(traj_follow_connect))]
     shared_period=overlap_period(time_period_lead,time_period_follow)
-
 
     traj_info=[]
     for period in shared_period:

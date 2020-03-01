@@ -20,6 +20,7 @@ def main():
             fo=open(os.path.dirname(__file__) + '\\data\\%s\\run_%s_set_%s'  % (model, run, set),'wb')
             pickle.dump(messeage_dict,fo)
         analyze_and_draw(messeage_dict, model, run, set)
+
     elif ID==9:
         messeage_dict = read_data_from_csv('\\data\\prius\\two_vehicle\\output%s_%s.csv' % (run, set),
                                            5)
@@ -32,10 +33,10 @@ def main():
 if __name__ == '__main__':
     global run
     global set
-    for run in [str(i) for i in range(16,17)]:
-        for set in range(3,5):
-            # try:
-            #     main() #The beginning of the program. It goes to the def main() function,
-            # except:
-            #     print('this set not exists')
-            main()
+    for run in ['9_f','10_m']:
+        for set in range(1,20):
+            try:
+                main() #The beginning of the program. It goes to the def main() function,
+            except:
+                print('this set not exists')
+            # main()
