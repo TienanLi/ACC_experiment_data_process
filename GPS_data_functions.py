@@ -15,6 +15,8 @@ def read_data_from_summary_csv(folder_name):
     for csv_file in os.listdir(os.path.dirname(__file__) + folder_name):
         if '.csv' not in csv_file:
             continue
+        if 'summary' not in csv_file:
+            continue
         traj_dict.append([])
         fo = open(os.path.dirname(__file__)+folder_name+'/' + csv_file, 'r')
         line_num=0
@@ -102,7 +104,7 @@ def traj_process(location, start_end_time, folder_name):
             t = [location[veh][i][3] for i in range(len(location[veh]))]
             v = [location[veh][i][2] for i in range(len(location[veh]))]
             t, v = fix_missing_GPS_frame(t, v)
-            v = moving_average(v, 1 * data_frequency)
+            v = moving_average(v, 2 * data_frequency)
             if len(traj) == 0:
                 traj.append(t)
                 traj.append(v)
@@ -114,14 +116,27 @@ def traj_process(location, start_end_time, folder_name):
         part += 1
     return traj_dict
 
-def speed_visulization(traj_dict):
+def speed_visulization(traj_dict, folder_name):
+    traj_color = ['g', 'r', 'b']
     split = 1
     part = 1
     for traj in traj_dict:
         part += 1
-        oscillations = oscillation_statistics(traj[0], traj[1], data_frequency, fluent=True)
-        divided_traj = traj_by_oscillation(traj, oscillations, extended_time=45)
+
+        # fig = plt.figure(figsize=(12, 8), dpi=100)
+        # plt.plot(traj[0], traj[1])
+        # plt.plot(traj[0], traj[2])
+        # plt.xticks(np.arange(traj[0][0], traj[0][-1], 20))
+        # plt.grid(True)
+        # plt.show()
+        # plt.close()
+
+        divided_traj = traj_by_oscillation_manual(traj, folder_name)
+        # oscillations = oscillation_statistics(traj[0], traj[1], data_frequency, fluent = True)
+        # divided_traj = traj_by_oscillation(traj, oscillations, extended_time = 45, smart_extension = True)
         for traj in divided_traj:
+            oscillations_FV = oscillation_statistics(traj[0], traj[1], data_frequency, fluent=True)
+            oscillationS_LV = oscillation_statistics(traj[0], traj[2], data_frequency, fluent=True)
             print('printing:', split)
             fig = plt.figure(figsize=(12, 8), dpi=100)
             try:
@@ -129,7 +144,20 @@ def speed_visulization(traj_dict):
             except:
                 os.mkdir('figures_GPS_data/')
             for i in range(1, len(traj)):
-                plt.plot(traj[0], traj[i], label='veh' + str(i))
+                plt.plot(traj[0], traj[i], c = traj_color[i-1], label='veh' + str(i))
+            for o in oscillations_FV:
+                plt.scatter(o[6], o[7], color='r', s=60)
+                plt.scatter(o[8], o[9], color='r', s=60)
+                plt.scatter(o[2], o[3], color='r', s=60)
+                plt.scatter(o[4], o[5], color='r', s=60)
+
+                plt.scatter(o[0], o[1], color='k', marker='*', s=60)
+            for o in oscillationS_LV:
+                plt.scatter(o[6], o[7], color='g', s=60)
+                plt.scatter(o[8], o[9], color='g', s=60)
+                plt.scatter(o[2], o[3], color='g', s=60)
+                plt.scatter(o[4], o[5], color='g', s=60)
+                plt.scatter(o[0], o[1], color='k', marker='*', s=60)
             plt.legend()
             plt.savefig('figures_GPS_data/split_' + str(split) + '.png')
             plt.close()
@@ -166,3 +194,24 @@ def save_traj(traj, folder_name, part):
             flink.write('\n')
         flink.close()
 
+def traj_by_oscillation_manual(traj, folder_name):
+    oscillation_set = []
+    fo = open(os.path.dirname(__file__) + folder_name + '/oscillation_time.csv', 'r')
+    fo.readline()
+    line_num=0
+    while True:
+        line_num+=1
+        line = fo.readline()
+        if not line:
+            break
+        tmp = line.split(',')
+        oscillation_set.append((int(tmp[0]), int(tmp[1])))
+    fo.close()
+    divided_traj=[]
+    for oscillation in oscillation_set:
+        if (oscillation[0] > traj[0][-1]) or (oscillation[1] < traj[0][0]):
+            continue
+        s=find_nearest_index(traj[0],max(traj[0][0],oscillation[0]))
+        e=find_nearest_index(traj[0],min(traj[0][-1],oscillation[1]))
+        divided_traj.append([i[s:e] for i in traj])
+    return divided_traj

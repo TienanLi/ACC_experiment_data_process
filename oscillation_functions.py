@@ -190,13 +190,14 @@ def save_oscillations(oscillation_FV,oscillation_LV,run,set,part):
     flink.close()
     return [oscillation_FV[i] for i in to_keep_i],[oscillation_LV[j] for j in to_keep_j]
 
-def traj_by_oscillation(traj,oscillation_set,extended_time):
+def traj_by_oscillation(traj, oscillation_set, extended_time, smart_extension = False):
+
     divided_traj=[]
-    i=0
     for oscillation in oscillation_set:
+        if smart_extension == True:
+            extended_time = oscillation[4] - oscillation[2]
         s=find_nearest_index(traj[0],max(traj[0][0],oscillation[2]-extended_time))
         e=find_nearest_index(traj[0],min(traj[0][-1],oscillation[4]+extended_time))
-        i+=1
         divided_traj.append([i[s:e] for i in traj])
     return divided_traj
 
