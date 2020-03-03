@@ -10,20 +10,24 @@ import string
 font = {'family': 'DejaVu Sans',
         'size': 16}
 rc('font', **font)
+
 def oscillation_statistics(t,v,expected_frequency,fluent):
-    v_threshold=max(max(np.nanmax(v)*0.6,np.nanmean(v)*0.8),np.nanpercentile(v,15))
-    oscillation_pair=[]
-    oscillation=False
-    for i in range(1,len(v)):
-        if v[i]<v_threshold and v[i-1]>=v_threshold:
-            start=i
-            oscillation=True
-        if oscillation and (v[i]>=v_threshold and v[i-1]<v_threshold):
-            end=i
-            oscillation=False
-            if (end - start) > (1 * expected_frequency):
-                oscillation_pair.append((start,end))
+    # v_threshold=max(max(np.nanmax(v)*0.6,np.nanmean(v)*0.8),np.nanpercentile(v,15))
+    # oscillation_pair=[]
+    # oscillation=False
+    # for i in range(1,len(v)):
+    #     if v[i]<v_threshold and v[i-1]>=v_threshold:
+    #         start=i
+    #         oscillation=True
+    #     if oscillation and (v[i]>=v_threshold and v[i-1]<v_threshold):
+    #         end=i
+    #         oscillation=False
+    #         if (end - start) > (1 * expected_frequency):
+    #             oscillation_pair.append((start,end))
+
+    oscillation_pair = [(0,len(v))]
     oscillation_candidates=[v[p[0]:p[1]] for p in oscillation_pair]
+
     minimum_speed=[min(c) for c in oscillation_candidates]
     minimum_point=[c.index(min(c)) for c in oscillation_candidates]
     minimum_point_time_index=[oscillation_pair[i][0]+minimum_point[i] for i in range(len(oscillation_candidates))]
@@ -33,61 +37,39 @@ def oscillation_statistics(t,v,expected_frequency,fluent):
     #1: minimum speed
     o=0
     for t_p in minimum_point_time_index:
-        idle_threshold = max(1,minimum_speed[0]) * 0.02
-        previous_period=v[max(0,t_p-20*expected_frequency):t_p]
-        following_period=v[t_p:min(len(t),t_p+150*expected_frequency)]
-        previous_d=[(previous_period[i]-previous_period[i-1])*expected_frequency for i in range(1,len(previous_period))]
+        idle_threshold = .5
+        idle_threshold_rate = 1
+        previous_period = v[max(0, t_p - 150 * expected_frequency):t_p]
+        following_period = v[t_p:min(len(t), t_p + 150 * expected_frequency)]
+        previous_d = [(previous_period[i] - previous_period[i - 1]) * expected_frequency for i in
+                      range(1, len(previous_period))]
         if fluent:
-            moving_period=200
+            moving_period = 2 * expected_frequency
         else:
-            moving_period=400
-        previous_d=moving_average(previous_d,moving_period)
-        previous_d=[previous_d[0]]+previous_d
-        following_a = [(following_period[i] - following_period[i - 1])*expected_frequency for i in range(1, len(following_period))]
+            moving_period = 4 * expected_frequency
+        previous_d = moving_average(previous_d, moving_period)
+        previous_d = [previous_d[0]] + previous_d
+        following_a = [(following_period[i] - following_period[i - 1]) * expected_frequency for i in
+                       range(1, len(following_period))]
         following_a = moving_average(following_a, moving_period)
-        following_a=following_a+[following_a[-1]]
+        following_a = following_a + [following_a[-1]]
 
-        minimum_d=0
-        start_point=len(previous_period)-1
-        idle_start=len(previous_period)-1
-        idle_start_speed=minimum_speed[o]
-        for i in np.arange(len(previous_period)-2,1,-1):
-            if (previous_period[i]-minimum_speed[o])<=idle_threshold:
-                idle_start=i
-                idle_start_speed=previous_period[i]
-            if previous_period[i]>previous_period[start_point]:
-                start_point=i
-                if previous_d[i]<minimum_d:
-                    minimum_d=previous_d[i]
-            # elif (start_point-i)>2*expected_frequency or previous_d[i]>minimum_d*0.5 or ((previous_d[i]>(minimum_d*0.5) and previous_d[i]>-0.1) and fluent):
-            elif (start_point-i)>2*expected_frequency or previous_d[i]>minimum_d*0.1:
-                break
+        idle_start, idle_start_speed, start_point, start_speed, minimum_d = \
+            deceleration_parameters(minimum_speed, o, previous_period, previous_d,
+                                    idle_threshold, idle_threshold_rate)
 
         # plt.plot(range(len(previous_period)),[p for p in previous_period])
         # plt.plot(range(len(previous_d)),[(p+2)*50 for p in previous_d])
         # plt.scatter(i,previous_d[i])
         # plt.show()
 
-        start_speed=previous_period[start_point]
         oscillations[o].append(round(t[t_p-len(previous_period)+start_point],2))
         oscillations[o].append(round(start_speed,2))
         #2 deceleration start
         #3 deceleration start speed
-        maximum_a=0
-        end_point=0
-        idle_end=0
-        idle_end_speed=minimum_speed[o]
-        for i in np.arange(1,len(following_period)):
-            if (following_period[i]-minimum_speed[o])<idle_threshold:
-                idle_end=i
-                idle_end_speed=following_period[i]
-            if following_period[i]>=following_period[end_point]:
-                end_point=i
-                if following_a[i]>maximum_a:
-                    maximum_a=following_a[i]
-            elif (following_period[i]>=start_speed*0.8) and ((i-end_point)>3*expected_frequency or following_a[i]<(maximum_a*0.05)):
-                break
-        end_speed=following_period[end_point]
+        idle_end, idle_end_speed, end_point, end_speed, maximum_a = \
+            acceleration_parameters(minimum_speed, o, following_period, following_a,
+                                    idle_threshold, idle_threshold_rate, start_speed)
 
 
         oscillations[o].append(round(t[t_p+end_point],2))
@@ -106,11 +88,11 @@ def oscillation_statistics(t,v,expected_frequency,fluent):
         #10 minimum deceleration rate
         oscillations[o].append(round(maximum_a,2))
         #11 maximum acceleration rate
-        if min(start_speed-idle_start_speed,end_speed-idle_end_speed)<1.5 or (t_p-len(previous_period)+start_point)<1:
-            oscillations.pop(o)
-            minimum_speed.pop(o)
-        else:
-            o+=1
+        # if min(start_speed-idle_start_speed,end_speed-idle_end_speed)<1.5 or (t_p-len(previous_period)+start_point)<1:
+        #     oscillations.pop(o)
+        #     minimum_speed.pop(o)
+        # else:
+        #     o+=1
     for i in range(len(oscillations)):
         o=oscillations[i]
         deceleration_duration=o[6]-o[2]
@@ -121,17 +103,70 @@ def oscillation_statistics(t,v,expected_frequency,fluent):
         oscillations[i]=oscillations[i]+[round(deceleration_duration,2),round(deceleration_rate,2),
                                          round(acceleration_duration,2),round(acceleration_rate,2),
                                          round(idle_duration,2)]
-        #12 deceleration duration
-        #13 avg decleration rate
-        #14 accelereation duration
-        #15 avg deceleration rate
-        #16 idle duration
+        # 12 deceleration duration
+        # 13 avg decleration rate
+        # 14 accelereation duration
+        # 15 avg deceleration rate
+        # 16 idle duration
     return oscillations
 
-def save_oscillations(oscillation_FV,oscillation_LV,run,set,part):
+def deceleration_parameters(minimum_speed, o, previous_period, previous_d,
+                            idle_threshold, idle_threshold_rate):
+    minimum_d = 0
+    start_point = len(previous_period) - 1
+    idle_start = len(previous_period) - 1
+    idle_start_speed = minimum_speed[o]
+    for i in np.arange(len(previous_period) - 2, 1, -1):
+        # recognize the deceleration start point
+        if previous_period[i] > previous_period[start_point]:
+            start_point = i
+            if previous_d[i] < minimum_d:
+                minimum_d = previous_d[i]
+        if previous_d[i] > (minimum_d * 0.05) and minimum_d == min(previous_d):
+            break
+    start_speed = previous_period[start_point]
+
+    idle_threshold_rate = abs(minimum_d / 3)
+    for i in np.arange(len(previous_period) - 2, 1, -1):
+        # recognize the idle start point
+        if (abs(previous_d[i]) < idle_threshold_rate) or ((previous_period[i] - minimum_speed[o]) < idle_threshold):
+            idle_start = i
+            idle_start_speed = previous_period[i]
+        if previous_d[i] == (minimum_d):
+            break
+
+    return idle_start, idle_start_speed, start_point, start_speed, minimum_d
+
+
+def acceleration_parameters(minimum_speed, o, following_period, following_a,
+                            idle_threshold, idle_threshold_rate, start_speed):
+    maximum_a = 0
+    end_point = 0
+    idle_end = 0
+    idle_end_speed = minimum_speed[o]
+    for i in np.arange(1, len(following_period)):
+        if following_period[i] >= following_period[end_point]:
+            end_point = i
+            if following_a[i] > maximum_a:
+                maximum_a = following_a[i]
+        if (maximum_a == max(following_a)) and (following_a[i] < (maximum_a * 0.05)):
+            break
+    end_speed = following_period[end_point]
+
+    idle_threshold_rate = maximum_a / 3
+    for i in np.arange(1, len(following_period)):
+        if  (following_a[i] < idle_threshold_rate) or ((following_period[i] - minimum_speed[o]) < idle_threshold):
+            idle_end = i
+            idle_end_speed = following_period[i]
+        if  following_a[i] > (maximum_a * .8):
+            break
+
+    return idle_end, idle_end_speed, end_point, end_speed, maximum_a
+
+def save_oscillations(oscillation_FV,oscillation_LV,run,set,part, folder_name = ''):
     rsp_set=[]
     try:
-        fo = open('oscillation_info.csv', 'r')
+        fo = open(folder_name+'oscillation_info.csv', 'r')
         while True:
             line = fo.readline()
             if not line:
@@ -143,7 +178,7 @@ def save_oscillations(oscillation_FV,oscillation_LV,run,set,part):
         mode='a'
     except:
         mode='w'
-    flink = open('oscillation_info.csv', mode)
+    flink = open(folder_name+'oscillation_info.csv', mode)
     if 'run,set,part,' not in rsp_set:
         flink.write('run,set,part,Ft_minV,FminV,Ft_Ds,FV_Ds,Ft_Ae,FV_Ae,Ft_De,Fv_De,Ft_As,FV_As,FminD,FmaxA,FDdur,FD,FAdur,FA,FIdledur,'+
         'Lt_minV,LminV,Lt_Ds,LV_Ds,Lt_Ae,LV_Ae,Lt_De,Lv_De,Lt_As,LV_As,LminD,LmaxA,LDdur,LD,LAdur,LA,LIdledur,Ds_Delay,De_Delay,As_Delay,'+
@@ -167,10 +202,10 @@ def save_oscillations(oscillation_FV,oscillation_LV,run,set,part):
                 flink.write('%s,'%str(item))
             for item in oscillation_LV[j]:
                 flink.write('%s,'%str(item))
-            flink.write('%s,' % str(oscillation_FV[i][2]-oscillation_LV[j][2]))
-            flink.write('%s,' % str(oscillation_FV[i][6]-oscillation_LV[j][6]))
-            flink.write('%s,' % str(oscillation_FV[i][8]-oscillation_LV[j][8]))
-            flink.write('%s,' % str(oscillation_FV[i][4]-oscillation_LV[j][4]))
+            flink.write('%s,' % str(max(0,oscillation_FV[i][2]-oscillation_LV[j][2])))
+            flink.write('%s,' % str(max(0,oscillation_FV[i][6]-oscillation_LV[j][6])))
+            flink.write('%s,' % str(max(0,oscillation_FV[i][8]-oscillation_LV[j][8])))
+            flink.write('%s,' % str(max(0,oscillation_FV[i][4]-oscillation_LV[j][4])))
             flink.write('%s,' % str(round(oscillation_FV[i][1]-oscillation_LV[j][1],2)))
             flink.write('%s,' % str(round(oscillation_FV[i][5]-oscillation_LV[j][5],2)))
             flink.write('%s,' % str(round(oscillation_FV[i][13]-oscillation_LV[j][13],2)))

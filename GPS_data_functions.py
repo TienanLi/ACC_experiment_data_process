@@ -5,7 +5,7 @@ import branca.colormap as cm
 import matplotlib.pyplot as plt
 from Analyze_functions_multiple_veh import overlap_period
 from base_functions import find_nearest_index, moving_average
-from oscillation_functions import oscillation_statistics, traj_by_oscillation
+from oscillation_functions import oscillation_statistics, traj_by_oscillation, save_oscillations
 
 global data_frequency
 data_frequency = 10
@@ -135,10 +135,11 @@ def speed_visulization(traj_dict, folder_name):
         # oscillations = oscillation_statistics(traj[0], traj[1], data_frequency, fluent = True)
         # divided_traj = traj_by_oscillation(traj, oscillations, extended_time = 45, smart_extension = True)
         for traj in divided_traj:
-            oscillations_FV = oscillation_statistics(traj[0], traj[1], data_frequency, fluent=True)
-            oscillationS_LV = oscillation_statistics(traj[0], traj[2], data_frequency, fluent=True)
+            oscillations_LV = oscillation_statistics(traj[0], traj[1], data_frequency, fluent=True)
+            oscillations_FV = oscillation_statistics(traj[0], traj[2], data_frequency, fluent=True)
+            save_oscillations(oscillations_FV, oscillations_LV, '', part, split, os.getcwd() + folder_name)
             print('printing:', split)
-            fig = plt.figure(figsize=(12, 8), dpi=100)
+            fig = plt.figure(figsize=(12, 6), dpi=100)
             try:
                 os.stat('figures_GPS_data/')
             except:
@@ -150,9 +151,8 @@ def speed_visulization(traj_dict, folder_name):
                 plt.scatter(o[8], o[9], color='r', s=60)
                 plt.scatter(o[2], o[3], color='r', s=60)
                 plt.scatter(o[4], o[5], color='r', s=60)
-
                 plt.scatter(o[0], o[1], color='k', marker='*', s=60)
-            for o in oscillationS_LV:
+            for o in oscillations_LV:
                 plt.scatter(o[6], o[7], color='g', s=60)
                 plt.scatter(o[8], o[9], color='g', s=60)
                 plt.scatter(o[2], o[3], color='g', s=60)
