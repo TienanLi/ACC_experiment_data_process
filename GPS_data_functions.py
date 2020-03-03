@@ -119,10 +119,7 @@ def traj_process(location, start_end_time, folder_name):
 def speed_visulization(traj_dict, folder_name):
     traj_color = ['g', 'r', 'b']
     split = 1
-    part = 1
     for traj in traj_dict:
-        part += 1
-
         # fig = plt.figure(figsize=(12, 8), dpi=100)
         # plt.plot(traj[0], traj[1])
         # plt.plot(traj[0], traj[2])
@@ -130,14 +127,13 @@ def speed_visulization(traj_dict, folder_name):
         # plt.grid(True)
         # plt.show()
         # plt.close()
-
         divided_traj = traj_by_oscillation_manual(traj, folder_name)
         # oscillations = oscillation_statistics(traj[0], traj[1], data_frequency, fluent = True)
         # divided_traj = traj_by_oscillation(traj, oscillations, extended_time = 45, smart_extension = True)
         for traj in divided_traj:
             oscillations_LV = oscillation_statistics(traj[0], traj[1], data_frequency, fluent=True)
             oscillations_FV = oscillation_statistics(traj[0], traj[2], data_frequency, fluent=True)
-            save_oscillations(oscillations_FV, oscillations_LV, '', part, split, os.getcwd() + folder_name)
+            save_oscillations(oscillations_FV, oscillations_LV, '', '', split, os.getcwd() + folder_name)
             print('printing:', split)
             fig = plt.figure(figsize=(12, 6), dpi=100)
             try:

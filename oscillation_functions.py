@@ -187,10 +187,10 @@ def save_oscillations(oscillation_FV,oscillation_LV,run,set,part, folder_name = 
     to_keep_i=[]
     j=0
     for i in range(len(oscillation_FV)):
-        if (oscillation_FV[i][0] - oscillation_LV[j][0]) <= - 10:
+        if (oscillation_FV[i][0] - oscillation_LV[j][0]) <= - 20:
             continue
         try:
-            while (oscillation_FV[i][0] - oscillation_LV[j][0]) >= 10:
+            while (oscillation_FV[i][0] - oscillation_LV[j][0]) >= 20:
                 j += 1
         except:
             break
@@ -245,6 +245,9 @@ def draw_oscillation_statistics(data,x_column,y_column,label_column,x_label,y_la
     c_group['middle']='b'
     c_group['low']='r'
     c_group['default']='k'
+
+
+
 
     data_group={}
     data_group['high']=[]
@@ -317,14 +320,16 @@ def draw_oscillation_statistics(data,x_column,y_column,label_column,x_label,y_la
     plt.xlabel(x_label,fontsize=16)
     plt.ylabel(y_label,fontsize=16)
     # plt.ylim([0,20])
-    plt.savefig('figures_scatters/'+title+'_'+x_label[:-8]+' '+y_label[:-8]+'.png')
+    plt.savefig('figures_scatters/new/'+title+'_'+x_label[:-8]+' '+y_label[:-8]+'.png')
     plt.close()
 
 
 def draw_oscillation_statistics_2(data,x_column,y_column,label_column,secondary_label_column,x_label,y_label,stick_plot=True):
+    mark_label = 'magnitude'
+    mark = ['minor', 'major']
     c_group={}
-    c_group['power']='red'
-    c_group['eco']='navy'
+    c_group[mark[0]]='red'
+    c_group[mark[1]]='navy'
     c_group['high']='g'
     c_group['middle']='b'
     c_group['low']='r'
@@ -333,72 +338,73 @@ def draw_oscillation_statistics_2(data,x_column,y_column,label_column,secondary_
     data_group['high']={}
     data_group['middle']={}
     data_group['low']={}
-    data_group['high']['power']=[]
-    data_group['middle']['power']=[]
-    data_group['low']['power']=[]
-    data_group['high']['eco']=[]
-    data_group['middle']['eco']=[]
-    data_group['low']['eco']=[]
+    data_group['high'][mark[0]]=[]
+    data_group['middle'][mark[0]]=[]
+    data_group['low'][mark[0]]=[]
+    data_group['high'][mark[1]]=[]
+    data_group['middle'][mark[1]]=[]
+    data_group['low'][mark[1]]=[]
+
 
     fig = plt.figure(figsize=(5, 5), dpi=300)
     ax = fig.add_subplot(111)
-    ax.set_position([0.15, 0.15, 0.8, 0.8])
+    ax.set_position([0.2, 0.15, 0.75, 0.8])
     for d in data:
         # plt.scatter(d[x_column],d[y_column],color=c_group[d[secondary_label_column]],alpha=.25)
         data_group[d[label_column]][d[secondary_label_column]].append((d[x_column],d[y_column]))
 
 
-    mean_value=[(np.mean([i[0] for i in data_group[label]['eco']]+[i[0] for i in data_group[label]['power']]),
-                 np.mean([i[1] for i in data_group[label]['eco']]),
-                 np.percentile([i[1] for i in data_group[label]['eco']],90),
-                 np.percentile([i[1] for i in data_group[label]['eco']],10),
-                 np.std([i[1] for i in data_group[label]['eco']]),
+    mean_value=[(np.mean([i[0] for i in data_group[label][mark[1]]]+[i[0] for i in data_group[label][mark[0]]]),
+                 np.mean([i[1] for i in data_group[label][mark[1]]]),
+                 np.percentile([i[1] for i in data_group[label][mark[1]]],90),
+                 np.percentile([i[1] for i in data_group[label][mark[1]]],10),
+                 np.std([i[1] for i in data_group[label][mark[1]]]),
                  label,
-                 [i[1] for i in data_group[label]['eco']]) for label in data_group]
+                 [i[1] for i in data_group[label][mark[1]]]) for label in data_group]
     mean_value.sort(key=lambda v: v[0])
     # box_data=[mv[6] for mv in mean_value]
     # plt.boxplot(box_data,whis=[5,95],labels=['Low','Middle','High'])
-    line1=plt.plot([1,2,3],[mv[1] for mv in mean_value],color=c_group['eco'],linewidth=2)
+    line1=plt.plot([1,2,3],[mv[1] for mv in mean_value],color=c_group[mark[1]],linewidth=2)
     # plt.plot([1,2,3],[mv[2] for mv in mean_value],color='b',linewidth=2,alpha=.5,linestyle=':')
     # plt.plot([1,2,3],[mv[3] for mv in mean_value],color='b',linewidth=2,alpha=.5,linestyle=':')
-    plt.scatter([1,2,3], [mv[1] for mv in mean_value], color=c_group['eco'])
+    plt.scatter([1,2,3], [mv[1] for mv in mean_value], color=c_group[mark[1]])
 
     stick_width = .075
     stick_line_style='--'
     stick_line_width=1.5
     for i in range(len(mean_value)):
-        line1_1=plt.plot([i+1,i+1],[mean_value[i][2],mean_value[i][3]],color=c_group['eco'],
+        line1_1=plt.plot([i+1,i+1],[mean_value[i][2],mean_value[i][3]],color=c_group[mark[1]],
                          linewidth=stick_line_width,alpha=1,linestyle=stick_line_style)
-        plt.plot([i+1-stick_width,i+1+stick_width], [mean_value[i][2], mean_value[i][2]], color=c_group['eco'],
+        plt.plot([i+1-stick_width,i+1+stick_width], [mean_value[i][2], mean_value[i][2]], color=c_group[mark[1]],
                  linewidth=stick_line_width,alpha=1,linestyle=stick_line_style)
-        plt.plot([i+1-stick_width,i+1+stick_width], [mean_value[i][3], mean_value[i][3]], color=c_group['eco'],
+        plt.plot([i+1-stick_width,i+1+stick_width], [mean_value[i][3], mean_value[i][3]], color=c_group[mark[1]],
                  linewidth=stick_line_width,alpha=1,linestyle=stick_line_style)
         # plt.text(mean_value[i][0]-5,mean_value[i][2]*1.1,str(mean_value[i][5])+'\nmean:'+str(round(mean_value[i][1],2))+'\nstd:'+str(round(mean_value[i][4],2)))
         # if i >= 1:
         #     print(y_label,'eco', int(mean_value[i][0]), int(mean_value[i - 1][0]),
         #           stats.ttest_ind(mean_value[i][6], mean_value[i - 1][6])[1])
 
-    mean_value_2 = [(np.mean([i[0] for i in data_group[label]['eco']]+[i[0] for i in data_group[label]['power']]),
-                   np.mean([i[1] for i in data_group[label]['power']]),
-                   np.percentile([i[1] for i in data_group[label]['power']], 90),
-                   np.percentile([i[1] for i in data_group[label]['power']], 10),
-                   np.std([i[1] for i in data_group[label]['power']]),
+    mean_value_2 = [(np.mean([i[0] for i in data_group[label][mark[1]]]+[i[0] for i in data_group[label][mark[0]]]),
+                   np.mean([i[1] for i in data_group[label][mark[0]]]),
+                   np.percentile([i[1] for i in data_group[label][mark[0]]], 90),
+                   np.percentile([i[1] for i in data_group[label][mark[0]]], 10),
+                   np.std([i[1] for i in data_group[label][mark[0]]]),
                    label,
-                   [i[1] for i in data_group[label]['power']]) for label in data_group]
+                   [i[1] for i in data_group[label][mark[0]]]) for label in data_group]
     mean_value_2.sort(key=lambda v: v[0])
     # box_data=[mv[6] for mv in mean_value_2]
     # plt.boxplot(box_data,whis=[5,95],labels=['Low','Middle','High'])
-    line2=plt.plot([1,2,3], [mv[1] for mv in mean_value_2], color=c_group['power'], linewidth=2)
+    line2=plt.plot([1,2,3], [mv[1] for mv in mean_value_2], color=c_group[mark[0]], linewidth=2)
     # plt.plot([1,2,3],[mv[2] for mv in mean_value_2],color='r',linewidth=2,alpha=.5,linestyle=':')
     # plt.plot([1,2,3],[mv[3] for mv in mean_value_2],color='r',linewidth=2,alpha=.5,linestyle=':')
-    plt.scatter([1,2,3], [mv[1] for mv in mean_value_2], color=c_group['power'])
+    plt.scatter([1,2,3], [mv[1] for mv in mean_value_2], color=c_group[mark[0]])
 
     for i in range(len(mean_value_2)):
-        line2_1=plt.plot([i+1,i+1], [mean_value_2[i][2], mean_value_2[i][3]], color=c_group['power'],
+        line2_1=plt.plot([i+1,i+1], [mean_value_2[i][2], mean_value_2[i][3]], color=c_group[mark[0]],
                          linewidth=stick_line_width,alpha=1,linestyle=stick_line_style)
-        plt.plot([i+1-stick_width,i+1+stick_width], [mean_value_2[i][2], mean_value_2[i][2]], color=c_group['power'],
+        plt.plot([i+1-stick_width,i+1+stick_width], [mean_value_2[i][2], mean_value_2[i][2]], color=c_group[mark[0]],
                  linewidth=stick_line_width,alpha=1,linestyle=stick_line_style)
-        plt.plot([i+1-stick_width,i+1+stick_width], [mean_value_2[i][3], mean_value_2[i][3]], color=c_group['power'],
+        plt.plot([i+1-stick_width,i+1+stick_width], [mean_value_2[i][3], mean_value_2[i][3]], color=c_group[mark[0]],
                  linewidth=stick_line_width,alpha=1,linestyle=stick_line_style)
         # if i >= 1:
         #     print(y_label,'power', int(mean_value_2[i][0]), int(mean_value_2[i - 1][0]),
@@ -412,24 +418,22 @@ def draw_oscillation_statistics_2(data,x_column,y_column,label_column,secondary_
     plt.xlabel(x_label,fontsize=14)
     plt.ylabel(y_label,fontsize=14)
     plt.xticks((1,2,3), ('Low', 'Medium','High'))
-    plt.legend((line1[0],line1_1[0],line2[0],line2_1[0]),('eco','10th/90th value','power','10th/90th value'),fontsize=10.5)
+    # plt.legend((line1[0],line1_1[0],line2[0],line2_1[0]),(mark[1],'10th/90th value',mark[0],'10th/90th value'),fontsize=10.5)
+    plt.legend((line1[0], line2[0]),(mark[1], mark[0]),fontsize=10.5)
 
-    plt.savefig('figures_scatters/Engine_mode_'+y_label+'.png')
+    plt.savefig('figures_scatters/new/%s_'%mark_label+y_label+'.png')
     plt.close()
 
-def read_oscillation_data():
+def read_oscillation_data(folder_name = ''):
     group_info=get_group_info()
     data = []
-    fo = open('oscillation_info.csv', 'r')
+    fo = open(folder_name + 'oscillation_info.csv', 'r')
     fo.readline()
     while True:
         line = fo.readline()
         if not line:
             break
         tmp = line.split(',')
-        set = tmp[0]
-        speed_group = group_info[set][0]
-        power_mode = group_info[set][1]
         deceleration_starting_delay = float(tmp[37])
         deceleration_ending_delay = float(tmp[38])
         acceleration_starting_delay = float(tmp[39])
@@ -444,12 +448,28 @@ def read_oscillation_data():
         magnitude = float(tmp[45])
         LV_D = float(tmp[33])
         LV_A = float(tmp[35])
+        LV_idle_duration = float(tmp[36])
 
-        # if speed_group == 'middle' and LV_starting_speed < 65:
-        #     continue
+        if LV_idle_duration < 5:
+            idle_pattern = 'dip'
+        else:
+            idle_pattern = 'cruise'
+
+        # set = tmp[0]
+        # speed_group = group_info[set][0]
+        # power_mode = group_info[set][1]
+
+        if LV_starting_speed > 55:
+            speed_group = 'high'
+        elif LV_starting_speed > 40:
+            speed_group = 'middle'
+        else:
+            speed_group = 'low'
+        power_mode = ''
+
         if magnitude > 45:
             continue
-        data.append((speed_group,  # 0
+        data.append([speed_group,  # 0
                      power_mode,  # 1
                      deceleration_starting_delay,  # 2
                      deceleration_ending_delay,  # 3
@@ -464,12 +484,32 @@ def read_oscillation_data():
                      LV_A,  # 12
                      LV_D,  # 13
                      FA,#14
-                     FD#15
-                     ))
+                     FD,#15
+                     idle_pattern#16
+                     ])
     fo.close()
+
+    fo = open(folder_name + 'oscillation_time.csv', 'r')
+    fo.readline()
+    i=0
+    while True:
+        line = fo.readline()
+        if not line:
+            break
+        tmp = line.split(',')
+        data[i].append('headway - '+tmp[6])#17 headway setting
+        i += 1
+    fo.close()
+
+    for d in data:
+        if d[11] < 7.5:
+            d.append('minor')
+        else:
+            d.append('major')#18, magnitude pattern
+
     return data
 
-def draw_oscillation_statistics_multiple_val(data,x_column,y_column_set,label_column,x_label,y_label,stick_plot=False):
+def draw_oscillation_statistics_multiple_val(data,x_column,y_column_set,label_column,x_label,y_label,y_limit,stick_plot=False):
     c_group = {}
     c_group['power'] = 'r'
     c_group['eco'] = 'b'
@@ -544,7 +584,7 @@ def draw_oscillation_statistics_multiple_val(data,x_column,y_column_set,label_co
                                label,  # 5 mode label
                                data_points_y))  # 6 y samples
         mean_value.sort(key=lambda v: v[0])
-        print(var_name[y_column],[mv[1] for mv in mean_value],[mv[6] for mv in mean_value])
+        # print(var_name[y_column],[mv[1] for mv in mean_value],[mv[6] for mv in mean_value])
 
         mean_value_set.append((mean_value_set,y_column))
         plt.plot(np.arange(1,len(mean_value)+1), [np.mean(mv[6]) for mv in mean_value],
@@ -567,8 +607,8 @@ def draw_oscillation_statistics_multiple_val(data,x_column,y_column_set,label_co
     plt.xticks(np.arange(1,len(mean_value)+1), ('Low', 'Medium','High'))
     plt.xlabel(x_label, fontsize=16)
     plt.ylabel(y_label, fontsize=16)
-    plt.ylim([0,2])
+    plt.ylim(y_limit)
     plt.legend()
-    plt.savefig('figures_scatters/' + '_' + x_label[:-8] + ' ' + y_label[:-8]+ '_3.png')
+    plt.savefig('figures_scatters/new/' + '_' + x_label[:-8] + ' ' + y_label[:-8]+ '_3.png')
     plt.close()
 
