@@ -1,21 +1,23 @@
-import folium
+# import folium
 import os
 import numpy as np
-import branca.colormap as cm
+# import branca.colormap as cm
 import matplotlib.pyplot as plt
+from matplotlib import rc
 from Analyze_functions_multiple_veh import overlap_period
 from base_functions import find_nearest_index, moving_average
 from oscillation_functions import oscillation_statistics, traj_by_oscillation, save_oscillations
 
 global data_frequency
 data_frequency = 10
+font = {'family': 'DejaVu Sans',
+        'size': 16}
+rc('font', **font)
 
-def read_data_from_summary_csv(folder_name):
+def read_data_from_summary_csv(folder_name, platoon_number):
     traj_dict=[]
     for csv_file in os.listdir(os.path.dirname(__file__) + folder_name):
-        if '.csv' not in csv_file:
-            continue
-        if 'summary' not in csv_file:
+        if '%s.csv'%platoon_number not in csv_file:
             continue
         traj_dict.append([])
         fo = open(os.path.dirname(__file__)+folder_name+'/' + csv_file, 'r')
@@ -44,6 +46,8 @@ def read_data_from_seperated_csv(file_name,Lat_column,Lon_column,speed_column,ti
         start_end_time[veh] = []
         for csv_file in os.listdir(os.path.dirname(__file__)+file_name+'/'+veh):
             if '.csv' not in csv_file:
+                continue
+            if '_' not in csv_file:
                 continue
             fo = open(os.path.dirname(__file__)+file_name+'/'+veh + '/' + csv_file, 'r')
             line_num=0
@@ -93,8 +97,8 @@ def fix_missing_GPS_frame(t,v):
     return new_t,new_v
 
 
-def traj_process(location, start_end_time, folder_name):
-    divided_location = available_in_all(location, start_end_time, 2)
+def traj_process(location, start_end_time, folder_name, platoon_number):
+    divided_location = available_in_all(location, start_end_time, platoon_number)
     split = 1
     part = 1
     traj_dict=[]
@@ -112,30 +116,46 @@ def traj_process(location, start_end_time, folder_name):
                 traj.append(v)
         traj = [item[:min([len(item1) for item1 in traj])] for item in traj]
         traj_dict.append(traj)
-        save_traj(traj, folder_name, part)
+        save_traj(traj, folder_name, str(part)+'_'+str(platoon_number))
         part += 1
     return traj_dict
 
-def speed_visulization(traj_dict, folder_name):
+def speed_visulization(traj_dict, folder_name, overall=False):
     traj_color = ['g', 'r', 'b']
     split = 1
     for traj in traj_dict:
-        # fig = plt.figure(figsize=(12, 8), dpi=100)
-        # plt.plot(traj[0], traj[1])
-        # plt.plot(traj[0], traj[2])
-        # plt.xticks(np.arange(traj[0][0], traj[0][-1], 20))
-        # plt.grid(True)
-        # plt.show()
-        # plt.close()
+        if overall == True:
+            fig = plt.figure(figsize=(7, 4), dpi=100)
+            ax = fig.add_subplot(111)
+            ax.set_position([0.15, 0.2, 0.82, 0.7])
+            for i in range(1, len(traj)):
+                plt.plot(traj[0], traj[i], c=traj_color[i - 1], label='veh' + str(i))
+            plt.legend()
+            plt.xlabel('time (s)', fontsize=20)
+            plt.ylabel('speed(mph)', fontsize=20)
+            plt.show()
+            continue
+
         divided_traj = traj_by_oscillation_manual(traj, folder_name)
         # oscillations = oscillation_statistics(traj[0], traj[1], data_frequency, fluent = True)
         # divided_traj = traj_by_oscillation(traj, oscillations, extended_time = 45, smart_extension = True)
+        y_limit=[[15, 40], [25, 50], [45, 70]]
         for traj in divided_traj:
+            traj[0] = [tt - traj[0][0] for tt in traj[0]]
             oscillations_LV = oscillation_statistics(traj[0], traj[1], data_frequency, fluent=True)
             oscillations_FV = oscillation_statistics(traj[0], traj[2], data_frequency, fluent=True)
             save_oscillations(oscillations_FV, oscillations_LV, '', '', split, os.getcwd() + folder_name)
+            if oscillations_LV[0][3] > 55:
+                used_y_limit = y_limit[2]
+            elif oscillations_LV[0][3] > 40:
+                used_y_limit = y_limit[1]
+            else:
+                used_y_limit = y_limit[0]
             print('printing:', split)
-            fig = plt.figure(figsize=(12, 6), dpi=100)
+            fig = plt.figure(figsize=(7, 4), dpi=100)
+            ax = fig.add_subplot(111)
+            ax.set_position([0.15, 0.2, 0.82, 0.7])
+
             try:
                 os.stat('figures_GPS_data/')
             except:
@@ -155,6 +175,10 @@ def speed_visulization(traj_dict, folder_name):
                 plt.scatter(o[4], o[5], color='g', s=60)
                 plt.scatter(o[0], o[1], color='k', marker='*', s=60)
             plt.legend()
+            plt.ylim(used_y_limit)
+            plt.xlabel('time (s)', fontsize=20)
+            plt.ylabel('speed(mph)', fontsize=20)
+            plt.title('oscillation: '+str(split))
             plt.savefig('figures_GPS_data/split_' + str(split) + '.png')
             plt.close()
             split += 1

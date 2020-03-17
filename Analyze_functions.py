@@ -175,13 +175,13 @@ def draw_traj(t,v,d,v_LV_derived,d_LV,t_ita,ita,oscillations_FV,oscillationS_LV,
     bx.set_position([0.15, 0.35, 0.82, 0.25])
     ita_range=[0,3]
     plt.plot(t_ita, ita, color='g',label='direct measured from radar')
-    if regression:
-        plt.plot([t[t0s_i], t[t0e_i], t_p, t_p_max, t[t1s_i], t[t1e_i]], [tau0, tau0, tau_min, tau_max, tau1, tau1], color='k', linewidth=2)
-        plt.text(t[t0s_i+400], 1.3, '$\eta^0:$' + str(round(tau0, 2)) + '   $\eta^{min}:$' + str(round(tau_min, 2))
-                 + '   $\eta^{max}:$' + str(round(tau_max, 2))+ ' $\eta^1:$' + str(round(tau1, 2)),
-                 fontsize=16)
-        plt.plot([t[t_min_i], t[t_min_i]], ita_range, color='k', linestyle='--', linewidth=1, alpha=.5)
-        plt.plot([t[t_max_i], t[t_max_i]], ita_range, color='k', linestyle='--', linewidth=1, alpha=.5)
+    # if regression:
+    #     plt.plot([t[t0s_i], t[t0e_i], t_p, t_p_max, t[t1s_i], t[t1e_i]], [tau0, tau0, tau_min, tau_max, tau1, tau1], color='k', linewidth=2)
+    #     plt.text(t[t0s_i+400], 1.3, '$\eta^0:$' + str(round(tau0, 2)) + '   $\eta^{min}:$' + str(round(tau_min, 2))
+    #              + '   $\eta^{max}:$' + str(round(tau_max, 2))+ ' $\eta^1:$' + str(round(tau1, 2)),
+    #              fontsize=16)
+    #     plt.plot([t[t_min_i], t[t_min_i]], ita_range, color='k', linestyle='--', linewidth=1, alpha=.5)
+    #     plt.plot([t[t_max_i], t[t_max_i]], ita_range, color='k', linestyle='--', linewidth=1, alpha=.5)
     plt.ylabel(r'$\tau$', fontsize=16)
     plt.xlim(t[0]+3,t[-1])
     bx.locator_params(nbins=5, axis='x')
@@ -197,9 +197,9 @@ def draw_traj(t,v,d,v_LV_derived,d_LV,t_ita,ita,oscillations_FV,oscillationS_LV,
     # plt.plot(t_shift, v_LV_derived, color='b', linestyle='--', label='shifted LV')
     cx.locator_params(nbins=5, axis='x')
 
-    if regression:
-        plt.plot([t[t_min_i], t[t_min_i]], speed_range, color='k', linestyle='--', linewidth=1, alpha=.5)
-        plt.plot([t[t_max_i], t[t_max_i]], speed_range, color='k', linestyle='--', linewidth=1, alpha=.5)
+    # if regression:
+    #     plt.plot([t[t_min_i], t[t_min_i]], speed_range, color='k', linestyle='--', linewidth=1, alpha=.5)
+    #     plt.plot([t[t_max_i], t[t_max_i]], speed_range, color='k', linestyle='--', linewidth=1, alpha=.5)
     # plt.plot(t, v_LV_measured, color='k', label='LV (direct measured from radar)')
     for o in oscillations_FV:
         plt.scatter(o[6],o[7],color='r',s=60)

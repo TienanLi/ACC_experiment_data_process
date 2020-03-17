@@ -143,7 +143,6 @@ def fill_front_space_missing_signal(serie,expected_frequency,high_threshold,unno
     #     serie=fill_front_space_missing_signal(serie,expected_frequency,high_threshold,unnormal=True)
     return serie
 
-
 def get_ID_loc_and_model(run):
     messeage_ID_location=5
     model='prius'
@@ -164,7 +163,6 @@ def get_group_info():
     group_info['15']=('low','power')
     group_info['16']=('low','eco')
     group_info['17']=('middle','power')
-
     return group_info
 
 def get_speed_range(run):
