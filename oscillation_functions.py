@@ -98,9 +98,15 @@ def oscillation_statistics(t,v,expected_frequency,fluent):
     for i in range(len(oscillations)):
         o=oscillations[i]
         deceleration_duration=o[6]-o[2]
-        deceleration_rate=(o[3]-o[7])/deceleration_duration * 0.44704 #mph to m/s
+        if deceleration_duration == 0:
+            deceleration_rate = 1e8
+        else:
+            deceleration_rate=(o[3]-o[7])/deceleration_duration * 0.44704 #mph to m/s
         acceleration_duration=o[4]-o[8]
-        acceleration_rate=(o[5]-o[9])/acceleration_duration * 0.44704 #mph to m/s
+        if acceleration_duration == 0:
+            acceleration_rate = 1e8
+        else:
+            acceleration_rate=(o[5]-o[9])/acceleration_duration * 0.44704 #mph to m/s
         idle_duration=o[8]-o[6]
         oscillations[i]=oscillations[i]+[round(deceleration_duration,2),round(deceleration_rate,2),
                                          round(acceleration_duration,2),round(acceleration_rate,2),
