@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 from sklearn import linear_model
 from scipy import stats
+from math import sin, cos, sqrt, atan2, radians
+from pyproj import Proj, transform
 
 def draw_fig(x,x_label,y,y_label):
     fig = plt.figure(figsize=(8, 8), dpi=300)
@@ -235,3 +237,19 @@ def linear_regression(X,Y):
     p_values = [2 * (1 - stats.t.cdf(np.abs(i), (len(newX) - 1))) for i in ts_b]
 
     return params[1],params[0],p_values[1]
+
+
+
+def cal_distance(point_1,point_2):
+    # approximate radius of earth in m
+    R = 6373.0
+    lat1 = radians(point_1[0])
+    lon1 = radians(point_1[1])
+    lat2 = radians(point_2[0])
+    lon2 = radians(point_2[1])
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    distance = R * c * 1000
+    return distance
