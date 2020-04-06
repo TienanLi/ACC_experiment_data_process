@@ -196,12 +196,11 @@ def save_continuous_CF_traj(traj_dict, oscillation_set, folder_name):
             part += 1
 
 
-def speed_visulization(traj_dict, folder_name, MA_window = 2, extended_period = 50, overall=False):
+def speed_visulization(traj_dict, folder_name, MA_window = 2, extended_period = 50, overall=False, draw_veh=3):
     oscillation_set = read_oscillation_time(folder_name)
-    save_continuous_CF_traj(traj_dict, oscillation_set, folder_name)
+    # save_continuous_CF_traj(traj_dict, oscillation_set, folder_name)
 
     traj_color = ['green', 'red', 'blue']
-
     stablization_level = []
     oscillation_info = []
     for traj in traj_dict:
@@ -266,14 +265,14 @@ def speed_visulization(traj_dict, folder_name, MA_window = 2, extended_period = 
                 width = 12
             else:
                 width = 7
-            stablization_before = \
-                extended_traj[1][find_nearest_index(extended_traj[0],oscillations_LV[0][2]-30):
-                                 find_nearest_index(extended_traj[0],oscillations_LV[0][2])]
-            stablization_after = \
-                extended_traj[1][find_nearest_index(extended_traj[0],oscillations_LV[0][4]):
-                                 find_nearest_index(extended_traj[0],oscillations_LV[0][4]+30)]
-            stablization_level.append([np.std(stablization_before),selected_oscillation_set[traj_num][2:]+[speed_group]])
-            stablization_level.append([np.std(stablization_after),selected_oscillation_set[traj_num][2:]+[speed_group]])
+            # stablization_before = \
+            #     extended_traj[1][find_nearest_index(extended_traj[0],oscillations_LV[0][2]-30):
+            #                      find_nearest_index(extended_traj[0],oscillations_LV[0][2])]
+            # stablization_after = \
+            #     extended_traj[1][find_nearest_index(extended_traj[0],oscillations_LV[0][4]):
+            #                      find_nearest_index(extended_traj[0],oscillations_LV[0][4]+30)]
+            # stablization_level.append([np.std(stablization_before),selected_oscillation_set[traj_num][2:]+[speed_group]])
+            # stablization_level.append([np.std(stablization_after),selected_oscillation_set[traj_num][2:]+[speed_group]])
             # print(stablization_level[-2])
             # print(stablization_level[-1])
             # traj_num+=1
@@ -305,7 +304,7 @@ def speed_visulization(traj_dict, folder_name, MA_window = 2, extended_period = 
                 max_position = 0
                 min_position = 0
                 slope = (extended_traj[4][-1] - extended_traj[4][0]) / (len(extended_traj[4]) - 1)
-                for i in range(1, 4):
+                for i in range(1, draw_veh + 1):
                     oblique_traj = [extended_traj[i+3][j] - extended_traj[6][0] - slope * j
                                     for j in range(len(extended_traj[i+3]))]
                     color_indicator = np.array(extended_traj[i])
@@ -330,7 +329,7 @@ def speed_visulization(traj_dict, folder_name, MA_window = 2, extended_period = 
 
             ax = fig.add_subplot(312)
             ax.set_position([0.08, 0.35, 0.87, 0.2])
-            for i in range(1, 4):
+            for i in range(1, draw_veh + 1):
                 ax.plot(extended_traj[0], extended_traj[i], c=traj_color[i - 1], label='veh' + str(i))
             for o in oscillations_LV:
                 ax.scatter(o[2], o[3], color='g', s=60)
@@ -348,6 +347,8 @@ def speed_visulization(traj_dict, folder_name, MA_window = 2, extended_period = 
                     continue
                 if o[2] > oscillations_FV[0][4]:
                     continue
+                if draw_veh < 3:
+                    continue
                 ax.scatter(o[2], o[3], color='b', s=36)
                 ax.scatter(o[6], o[7], color='b', s=36)
                 ax.scatter(o[8], o[9], color='b', s=36)
@@ -364,7 +365,7 @@ def speed_visulization(traj_dict, folder_name, MA_window = 2, extended_period = 
 
             cx = fig.add_subplot(313)
             cx.set_position([0.08, 0.1, 0.87, 0.2])
-            for i in range(1, 4):
+            for i in range(1, draw_veh + 1):
                 cx.plot(extended_traj[0], extended_traj[i+6], c=traj_color[i - 1], label='veh' + str(i))
             plt.legend(loc=1)
             plt.xlim(extended_traj[0][0], extended_traj[0][-1])
@@ -381,9 +382,9 @@ def speed_visulization(traj_dict, folder_name, MA_window = 2, extended_period = 
             plt.close()
             traj_num += 1
     # print('average stabilization STD:',np.average([a[0] for a in stablization_level]))
-    file = open(os.path.dirname(__file__) + folder_name + 'oscillation_info','wb')
-    pickle.dump(oscillation_info, file)
-    file.close()
+    # file = open(os.path.dirname(__file__) + folder_name + 'oscillation_info','wb')
+    # pickle.dump(oscillation_info, file)
+    # file.close()
 
 def available_in_all(location, start_end_time, veh_num):
     i = 0

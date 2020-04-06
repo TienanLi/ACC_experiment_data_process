@@ -102,8 +102,8 @@ def bar_plot(oscillation_features, impact_factor_column, feature_column_group,
                       stats.ttest_ind(overall_mean_value[j][i][5], overall_mean_value[j-1][i][5])[1])
                 print('\n')
 
-    plt.legend()
-    plt.xticks(np.arange(1, len(mean_value) + 1), feature_column_group_label)
+    plt.legend(loc=2)
+    plt.xticks(np.arange(1, len(mean_value) + 1), feature_column_group_label, fontsize=12)
     plt.xlabel(x_label,fontsize=14)
     plt.ylabel(y_label,fontsize=14)
     plt.show()
@@ -175,7 +175,7 @@ def bar_plot_inverse(oscillation_features, impact_factor_column, feature_column_
                       stats.ttest_ind(overall_mean_value[j][i][5], overall_mean_value[j-1][i][5])[1])
                 print('\n')
 
-    plt.legend()
+    plt.legend(loc=1)
     plt.xticks(np.arange(1, len(mean_value) + 1), impact_factor_group_label)
     plt.xlabel(x_label,fontsize=14)
     plt.ylabel(y_label,fontsize=14)
