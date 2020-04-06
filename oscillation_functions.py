@@ -24,7 +24,6 @@ def oscillation_statistics(t,v,expected_frequency,fluent):
     #         oscillation=False
     #         if (end - start) > (1 * expected_frequency):
     #             oscillation_pair.append((start,end))
-
     oscillation_pair = [(0,len(v))]
     oscillation_candidates=[v[p[0]:p[1]] for p in oscillation_pair]
 
@@ -49,8 +48,6 @@ def oscillation_statistics(t,v,expected_frequency,fluent):
             moving_period = 4 * expected_frequency
         previous_d = moving_average(previous_d, moving_period)
         previous_d = [previous_d[0]] + previous_d
-
-
         following_a = [(following_period[i] - following_period[i - 1]) * expected_frequency for i in
                        range(1, len(following_period))]
         following_a = moving_average(following_a, moving_period)
@@ -60,19 +57,14 @@ def oscillation_statistics(t,v,expected_frequency,fluent):
             deceleration_parameters(minimum_speed, o, previous_period, previous_d,
                                     idle_threshold, idle_threshold_rate)
 
-        # plt.plot(range(len(previous_period)),[p for p in previous_period])
-        # plt.plot(range(len(previous_d)),[(p+2)*50 for p in previous_d])
-        # plt.scatter(i,previous_d[i])
-        # plt.show()
-
         oscillations[o].append(round(t[t_p-len(previous_period)+start_point],2))
         oscillations[o].append(round(start_speed,2))
         #2 deceleration start
         #3 deceleration start speed
+
         idle_end, idle_end_speed, end_point, end_speed, maximum_a = \
             acceleration_parameters(minimum_speed, o, following_period, following_a,
                                     idle_threshold, idle_threshold_rate, start_speed)
-
 
         oscillations[o].append(round(t[t_p+end_point],2))
         oscillations[o].append(round(end_speed,2))
@@ -86,23 +78,19 @@ def oscillation_statistics(t,v,expected_frequency,fluent):
         oscillations[o].append(round(idle_end_speed,2))
         #8 acceleration begin
         #9 acceleration begin speed
-        oscillations[o].append(round(minimum_d * 0.44704 ,2)) #mph to m/s
+        oscillations[o].append(-round(minimum_d * 0.44704 ,2)) #mph to m/s
         #10 minimum deceleration rate
         oscillations[o].append(round(maximum_a * 0.44704 ,2)) #mph to m/s
         #11 maximum acceleration rate
-        # if min(start_speed-idle_start_speed,end_speed-idle_end_speed)<1.5 or (t_p-len(previous_period)+start_point)<1:
-        #     oscillations.pop(o)
-        #     minimum_speed.pop(o)
-        # else:
-        #     o+=1
+
     for i in range(len(oscillations)):
         o=oscillations[i]
         deceleration_duration=o[6]-o[2]
         if deceleration_duration == 0:
             deceleration_rate = 1e8
         else:
-            deceleration_rate=(o[3]-o[7])/deceleration_duration * 0.44704 #mph to m/s
-        acceleration_duration=o[4]-o[8]
+            deceleration_rate = (o[3]-o[7]) / deceleration_duration * 0.44704 #mph to m/s
+        acceleration_duration = o[4] - o[8]
         if acceleration_duration == 0:
             acceleration_rate = 1e8
         else:

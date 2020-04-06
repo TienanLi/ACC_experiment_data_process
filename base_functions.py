@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
 from sklearn import linear_model
 from scipy import stats
 from math import sin, cos, sqrt, atan2, radians
@@ -252,4 +253,5 @@ def cal_distance(point_1,point_2):
     a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
     c = 2 * atan2(sqrt(a), sqrt(1 - a))
     distance = R * c * 1000
+
     return distance
