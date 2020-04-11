@@ -2,8 +2,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 from scipy import stats
+from base_functions import linear_regression
 
-def box_plot(oscillation_features, impact_factor_column, feature_column, impact_factor_label, x_label, y_label):
+def box_plot(oscillation_features, impact_factor_column, feature_column, impact_factor_label, x_label, y_label, title = ''):
     #for one features in one figure
     data_group = {}
     for l in impact_factor_label:
@@ -24,7 +25,7 @@ def box_plot(oscillation_features, impact_factor_column, feature_column, impact_
                  data_points_y))#5 y samples
     for i in range(len(mean_value)):
         if i>=1:
-            print(mean_value[i][4],round(mean_value[i][0], 2), mean_value[i-1][4], round(mean_value[i-1][0], 2), 'p-value', stats.ttest_ind(mean_value[i][5], mean_value[i-1][5])[1])
+            print(mean_value[i][4],round(mean_value[i][0], 2), mean_value[i-1][4], round(mean_value[i-1][0], 2), 'p-value', round(stats.ttest_ind(mean_value[i][5], mean_value[i-1][5])[1],3))
         
     plt.plot([i+1 for i in range(len(data_group.keys()))],[np.percentile(mv[5],50) for mv in mean_value],color='orange',linestyle='--',linewidth=1)
     box_data=[]
@@ -33,6 +34,7 @@ def box_plot(oscillation_features, impact_factor_column, feature_column, impact_
     plt.boxplot(box_data,whis=[5,95],labels=data_group.keys())
     plt.xlabel(x_label,fontsize=14)
     plt.ylabel(y_label,fontsize=14)
+    plt.title(title)
     plt.show()
 
     return mean_value
@@ -72,7 +74,7 @@ def bar_plot(oscillation_features, impact_factor_column, feature_column_group,
             if i >= 1:
                 print(mean_value[i][4], mean_value[i][6], round(mean_value[i][0], 2), mean_value[i - 1][6],
                       round(mean_value[i - 1][0], 2), 'p-value',
-                      stats.ttest_ind(mean_value[i][5], mean_value[i - 1][5])[1])
+                      round(stats.ttest_ind(mean_value[i][5], mean_value[i - 1][5])[1],3))
                 print('\n')
         plt.plot(np.arange(1, len(mean_value) + 1), [np.mean(mv[5]) for mv in mean_value],
                  linewidth=2, label=impact_factor_group_label[label_num], color=color_group[label_num], linestyle='-')
@@ -97,10 +99,16 @@ def bar_plot(oscillation_features, impact_factor_column, feature_column_group,
     for j in range(len(overall_mean_value)):
         if j >= 1:
             for i in range(len(mean_value)):
-                print(overall_mean_value[j][i][6], overall_mean_value[j][i][4], round(overall_mean_value[j][i][0], 2),
-                      overall_mean_value[j-1][i][4], round(overall_mean_value[j-1][i][0], 2), 'p-value',
-                      stats.ttest_ind(overall_mean_value[j][i][5], overall_mean_value[j-1][i][5])[1])
-                print('\n')
+                for k in range(1,j+1):
+                    print(overall_mean_value[j][i][6], 
+                         overall_mean_value[j][i][4], 
+                         round(overall_mean_value[j][i][0], 2),
+                         overall_mean_value[j-k][i][4], 
+                         round(overall_mean_value[j-k][i][0], 2), 
+                         'p-value',
+                         round(stats.ttest_ind(overall_mean_value[j][i][5], 
+                         overall_mean_value[j-k][i][5])[1],3))
+                    print('\n')
 
     plt.legend(loc=2)
     plt.xticks(np.arange(1, len(mean_value) + 1), feature_column_group_label, fontsize=12)
@@ -172,7 +180,7 @@ def bar_plot_inverse(oscillation_features, impact_factor_column, feature_column_
             for i in range(len(mean_value)):
                 print(overall_mean_value[j][i][6], overall_mean_value[j][i][4], round(overall_mean_value[j][i][0], 2),
                       overall_mean_value[j-1][i][4], round(overall_mean_value[j-1][i][0], 2), 'p-value',
-                      stats.ttest_ind(overall_mean_value[j][i][5], overall_mean_value[j-1][i][5])[1])
+                      round(stats.ttest_ind(overall_mean_value[j][i][5], overall_mean_value[j-1][i][5])[1],3))
                 print('\n')
 
     plt.legend(loc=1)
@@ -180,3 +188,23 @@ def bar_plot_inverse(oscillation_features, impact_factor_column, feature_column_
     plt.xlabel(x_label,fontsize=14)
     plt.ylabel(y_label,fontsize=14)
     plt.show()
+    
+def scatter_plot(oscillation_features, x_column, y_column, x_label, y_label, title, filter_column=None, filter_label=None):
+
+    X = []
+    Y = []
+    for d in oscillation_features:
+        if filter_column is not None:
+            if d[filter_column] != filter_label:
+                continue
+        X.append(d[x_column])
+        Y.append(d[y_column])
+    coef, intercept, p_value = linear_regression(X,Y)
+    print('coef:',coef,'intercept:',intercept,'p-value:',round(p_value,3))
+    plt.figure()
+    plt.scatter(X, Y)
+    plt.plot([min(X), max(X)], 
+             [min(X) * coef + intercept, max(X) * coef + intercept], c='k')
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.title(title)

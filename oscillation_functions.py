@@ -118,7 +118,7 @@ def deceleration_parameters(minimum_speed, o, previous_period, previous_d,
             start_point = i
             if previous_d[i] < minimum_d:
                 minimum_d = previous_d[i]
-        if previous_d[i] > (minimum_d * 0.05) and minimum_d == min(previous_d):
+        if previous_d[i] > (minimum_d * 0.1) and minimum_d == min(previous_d):
             break
     start_speed = previous_period[start_point]
 

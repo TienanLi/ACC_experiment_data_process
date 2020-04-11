@@ -257,17 +257,23 @@ def speed_visulization(traj_dict, folder_name, MA_window = 2, extended_period = 
             else:
                 used_y_limit = y_limit[0]
                 speed_group = 'low'
-            oscillation_info.append((oscillations_LV[0],oscillations_FV[0],
-                                     oscillations_TV[0],selected_oscillation_set[traj_num][2:]+[speed_group]))
+
             # traj_num+=1
             # continue
             if extended_period is not None:
                 width = 12
             else:
                 width = 7
-            # stablization_before = \
-            #     extended_traj[1][find_nearest_index(extended_traj[0],oscillations_LV[0][2]-30):
-            #                      find_nearest_index(extended_traj[0],oscillations_LV[0][2])]
+            stablization_before = \
+                extended_traj[1][find_nearest_index(extended_traj[0],oscillations_LV[0][2]-30):
+                                 find_nearest_index(extended_traj[0],oscillations_LV[0][2])]
+            stablization_before_FV = \
+                extended_traj[2][find_nearest_index(extended_traj[0],oscillations_LV[0][2]-30):
+                                 find_nearest_index(extended_traj[0],oscillations_LV[0][2])]
+            spacing_FV = [extended_traj[4][j] - extended_traj[5][j] for j in range(len(extended_traj[5]))]
+            spacing_TV = [extended_traj[5][j] - extended_traj[6][j] for j in range(len(extended_traj[5]))]
+            stablization_before_spacing = spacing_FV[find_nearest_index(extended_traj[0], oscillations_LV[0][2] - 30):
+                                                     find_nearest_index(extended_traj[0], oscillations_LV[0][2])]
             # stablization_after = \
             #     extended_traj[1][find_nearest_index(extended_traj[0],oscillations_LV[0][4]):
             #                      find_nearest_index(extended_traj[0],oscillations_LV[0][4]+30)]
@@ -275,8 +281,14 @@ def speed_visulization(traj_dict, folder_name, MA_window = 2, extended_period = 
             # stablization_level.append([np.std(stablization_after),selected_oscillation_set[traj_num][2:]+[speed_group]])
             # print(stablization_level[-2])
             # print(stablization_level[-1])
-            # traj_num+=1
-            # continue
+
+            oscillation_info.append((oscillations_LV[0],oscillations_FV[0],
+                                     oscillations_TV[0],selected_oscillation_set[traj_num][2:]+[speed_group],
+                                     stablization_before, stablization_before_FV, stablization_before_spacing,
+                                     spacing_FV))
+            traj_num+=1
+            continue
+
             fig = plt.figure(figsize=(width, 15), dpi=100)
             first_fig = 'oblique_traj'
             bx = fig.add_subplot(311)
@@ -290,9 +302,8 @@ def speed_visulization(traj_dict, folder_name, MA_window = 2, extended_period = 
                       ', BRAKE PATTERN: ' + selected_oscillation_set[traj_num][5] +
                       ', CRUISE: ' + selected_oscillation_set[traj_num][6].replace('\n',''))
 
+
             if first_fig == 'spacing':
-                spacing_FV = [extended_traj[4][j] - extended_traj[5][j] for j in range(len(extended_traj[5]))]
-                spacing_TV = [extended_traj[5][j] - extended_traj[6][j] for j in range(len(extended_traj[5]))]
                 mean_spacing_FV = np.mean(spacing_FV)
                 mean_spacing_TV = np.mean(spacing_TV)
                 plt.plot(extended_traj[0], [a - mean_spacing_FV for a in spacing_FV], 'r')
@@ -342,6 +353,8 @@ def speed_visulization(traj_dict, folder_name, MA_window = 2, extended_period = 
                 ax.scatter(o[6], o[7], color='r', s=36)
                 ax.scatter(o[8], o[9], color='r', s=36)
                 ax.scatter(o[4], o[5], color='r', s=36)
+                ax.scatter(o[0], o[1], color='k', marker='*', s=60)
+
             for o in oscillations_TV:
                 if len(o) == 0:
                     continue
@@ -380,11 +393,12 @@ def speed_visulization(traj_dict, folder_name, MA_window = 2, extended_period = 
             plt.savefig(os.path.dirname(__file__) + folder_name + 'figures_GPS_data/split_' +
                         str(selected_oscillation_set[traj_num][-1]) + '.png')
             plt.close()
+
             traj_num += 1
     # print('average stabilization STD:',np.average([a[0] for a in stablization_level]))
-    # file = open(os.path.dirname(__file__) + folder_name + 'oscillation_info','wb')
-    # pickle.dump(oscillation_info, file)
-    # file.close()
+    file = open(os.path.dirname(__file__) + folder_name + 'oscillation_info','wb')
+    pickle.dump(oscillation_info, file)
+    file.close()
 
 def available_in_all(location, start_end_time, veh_num):
     i = 0
