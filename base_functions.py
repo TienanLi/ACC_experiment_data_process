@@ -1,7 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-
+import pywt
+from scipy.signal import find_peaks
 from sklearn import linear_model
 from scipy import stats
 from math import sin, cos, sqrt, atan2, radians
@@ -255,3 +256,34 @@ def cal_distance(point_1,point_2):
     distance = R * c * 1000
 
     return distance
+
+
+def get_a_part_before_a_point(data, time_data, stab_point, duration):
+    return data[find_nearest_index(time_data, stab_point-duration):find_nearest_index(time_data, stab_point)]
+
+def oblique(data):
+    slope = (data[-1] - data[0]) / (len(data) - 1)
+    oblique_data = [data[j] - data[0] - slope * j for j in range(len(data))]
+    return oblique_data
+
+def get_stable_speed(speed):
+    stable_speed = [35, 45, 65]
+    if speed > 62:
+        return stable_speed[2]
+    elif speed > 42:
+        return stable_speed[1]
+    else:
+        return stable_speed[0]
+
+
+def WT_MEXH(y, frequency_bound = 32, prominence = 1):
+    coef, freqs = pywt.cwt(y, np.arange(1, frequency_bound + 1), "mexh")
+    z = 0
+    h = np.zeros(len(y))
+    while z < frequency_bound:
+        h += np.power(coef[z], 2)
+        z += 1
+    total_energy = h / frequency_bound
+    peak_wt = find_peaks(total_energy, prominence=prominence)[0]  # use prominence or width
+
+    return peak_wt, total_energy

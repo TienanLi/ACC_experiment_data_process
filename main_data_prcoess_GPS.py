@@ -8,7 +8,7 @@ def main(folder_name,platoon_number):
     else:
         location, start_end_time = read_data_from_seperated_csv(folder_name,2,3,5,1,4)
         traj_dict = traj_process(location, start_end_time, folder_name, platoon_number)
-    speed_visulization(traj_dict, folder_name, MA_window=2, extended_period = 60, overall=False, draw_veh=2)
+    speed_visulization(traj_dict, folder_name, MA_window=2, extended_period = 60, overall=False, draw_veh=3)
 
 
 if __name__=='__main__':
