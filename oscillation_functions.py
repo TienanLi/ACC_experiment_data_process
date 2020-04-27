@@ -37,24 +37,21 @@ def oscillation_statistics(t,v,expected_frequency,fluent):
                        range(1, len(following_period))]
         following_a = moving_average(following_a, moving_period)
         following_a = following_a + [following_a[-1]]
-
-        # idle_start, idle_start_speed, start_point, start_speed, minimum_d = \
-        #     deceleration_parameters(minimum_speed, o, previous_period, previous_d,
-        #                             idle_threshold, idle_threshold_rate)
-        idle_start, idle_start_speed, start_point, start_speed, minimum_d = \
-            deceleration_parameters_WT(previous_period, previous_d, idle_threshold)
+        try:
+            idle_start, idle_start_speed, start_point, start_speed, minimum_d = \
+                deceleration_parameters_WT(previous_period, previous_d, idle_threshold)
+        except:
+            return [[]]
 
         oscillations[o].append(round(t[t_p-len(previous_period)+start_point],2))
         oscillations[o].append(round(start_speed,2))
         #2 deceleration start
         #3 deceleration start speed
-
-        # idle_end, idle_end_speed, end_point, end_speed, maximum_a = \
-        #     acceleration_parameters(minimum_speed, o, following_period, following_a,
-        #                             idle_threshold, idle_threshold_rate, start_speed)
-        idle_end, idle_end_speed, end_point, end_speed, maximum_a = \
-            acceleration_parameters_WT(following_period, following_a, idle_threshold)
-
+        try:
+            idle_end, idle_end_speed, end_point, end_speed, maximum_a = \
+                acceleration_parameters_WT(following_period, following_a, idle_threshold)
+        except:
+            return [[]]
 
         oscillations[o].append(round(t[t_p+end_point],2))
         oscillations[o].append(round(end_speed,2))

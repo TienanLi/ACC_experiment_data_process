@@ -1,9 +1,9 @@
-# import folium
+import folium
 import os
 import time
 import pickle
 import numpy as np
-# import branca.colormap as cm
+import branca.colormap as cm
 import matplotlib.pyplot as plt
 # import plotly.graph_objects as go
 import matplotlib.cm as pcm
@@ -71,27 +71,44 @@ def read_data_from_seperated_csv(file_name,Lat_column,Lon_column,speed_column,ti
                     break
                 # from m/s to mph
                 location[veh].append([float(tmp[Lat_column]), float(tmp[Lon_column]),
-                                      float(tmp[speed_column])*2.23694, float(tmp[time_column]), float(tmp[height_column])])
+                                      float(tmp[speed_column])*2.23694, round(float(tmp[time_column]),1), float(tmp[height_column])])
 
                 if line_num == 1:
                     start_time = location[veh][-1][3]
             fo.close()
             start_end_time[veh].append((start_time, location[veh][-1][3]))
+
     return location, start_end_time
 
-def map_visulization(location):
-    m = folium.Map(location=[np.mean([location[i][0] for i in range(len(location))]), np.mean([location[i][1] for i in range(len(location))])],zoom_start=13)
-    colorscale = cm.LinearColormap(('r','y','g'),vmin=0,vmax=20)
-    for l in location:
-        folium.Circle(
-            location=[l[0], l[1]],
-            radius=1,
-            color = colorscale(l[2]),
-            fill=True
-        ).add_to(m)
-    colorscale.caption = 'Speed (m/s)'
-    m.add_child(colorscale)
-    m.save('test.html')
+def map_visulization(location_sets, filename = None, l_num_max = None):
+    l_num = 0
+    file_num = 0
+    colorscale = cm.LinearColormap(('r','y','g'),vmin=0,vmax=9)
+    for location_index in range(min([len(x) for x in location_sets])):
+        veh = 0
+        for location in location_sets:
+            l = location[location_index]
+            if l_num == 0:
+                m = folium.Map(location=[np.mean([l[0] for i in range(len(location_sets[0]))]),
+                                         np.mean([l[1] for i in range(len(location_sets[0]))])],
+                               zoom_start=13)
+                file_num += 1
+            folium.Circle(
+                location=[l[0], l[1]],
+                radius=1,
+                color = colorscale(l_num%10),
+                fill=True
+            ).add_to(m)
+            veh += 1
+            l_num += 1
+        if l_num_max is not None:
+            if l_num > l_num_max:
+                if filename is None:
+                    m.save(str(file_num) +'test.html')
+                else:
+                    m.save(str(file_num) + filename)
+                l_num = 0
+
 
 def fix_missing_GPS_frame(t, param_set):
     new_t = []
@@ -100,17 +117,16 @@ def fix_missing_GPS_frame(t, param_set):
     for param in param_set:
         new_param.append([])
     t_range = range(int(t[0]*data_frequency), int(t[-1]*data_frequency) + 1)
-    i = 0
     for tt in t_range:
         current_t = round(tt/data_frequency,1)
         new_t.append(current_t)
         if current_t in t:
+            last_i = t.index(current_t)
             for p in range(param_num):
-                new_param[p].append(param_set[p][i])
-            i += 1
+                new_param[p].append(param_set[p][last_i])
         else:
             for p in range(param_num):
-                new_param[p].append(np.mean([param_set[p][i],param_set[p][i+1]]))
+                new_param[p].append(np.mean([param_set[p][last_i],param_set[p][last_i+1]]))
 
     return new_t, new_param
 
@@ -119,52 +135,127 @@ def traj_process(location, start_end_time, folder_name, platoon_number):
     divided_location = available_in_all(location, start_end_time, platoon_number)
     part = 1
     traj_dict=[]
+    print('trajectory split get')
     for location in divided_location:
-        traj = []
-        coordinate = []
-        heights =[]
-        for veh in location:
-            t = [location[veh][i][3] for i in range(len(location[veh]))]
-            v = [location[veh][i][2] for i in range(len(location[veh]))] #mph
-            lat = [location[veh][i][0] for i in range(len(location[veh]))]
-            lon = [location[veh][i][1] for i in range(len(location[veh]))]
-            height = [location[veh][i][4] for i in range(len(location[veh]))]
-            t, [v, lat, lon, height] = fix_missing_GPS_frame(t, [v, lat, lon, height])
-            if len(traj) == 0:
-                traj.append(t)
-                traj.append(v)
-            else:
-                traj.append(v)
-            coordinate.append(lat)
-            coordinate.append(lon)
-            heights.append(height)
+        try:
+            file = open(os.path.dirname(__file__) + '/raw_data_split', 'rb')
+            [traj, coordinate, heights] = pickle.load(file)
+            file.close()
+        except:
+            traj = []
+            coordinate = []
+            heights =[]
+            for veh in location:
+                t = [location[veh][i][3] for i in range(len(location[veh]))]
+                v = [location[veh][i][2] for i in range(len(location[veh]))] #mph
+                lat = [location[veh][i][0] for i in range(len(location[veh]))]
+                lon = [location[veh][i][1] for i in range(len(location[veh]))]
+                height = [location[veh][i][4] for i in range(len(location[veh]))]
+                t, [v, lat, lon, height] = fix_missing_GPS_frame(t, [v, lat, lon, height])
+                print(veh+' trajectory fixed')
+                if len(traj) == 0:
+                    traj.append(t)
+                    traj.append(v)
+                else:
+                    traj.append(v)
+                coordinate.append(lat)
+                coordinate.append(lon)
+                heights.append(height)
+            # file = open(os.path.dirname(__file__) + '/raw_data_split', 'wb')
+            # pickle.dump([traj, coordinate, heights], file)
+            # file.close()
         traj_with_coordinate = traj + coordinate
         traj_with_coordinate = [item[:min([len(item1) for item1 in traj])] for item in traj_with_coordinate]
 
-        distance = [[],[],[]]
+        # map_visulization([[(coordinate[0][i], coordinate[1][i]) for i in range(len(coordinate[0]))],
+        #                   [(coordinate[2][i], coordinate[3][i]) for i in range(len(coordinate[0]))]],
+        #                  filename='two_veh.html', l_num_max=1e4)
+        # exit()
 
+        # the location of first veh - from speed
+        distance = [[]]
         for tt in range(len(traj_with_coordinate[0])):
-            veh_loc = []
-            v_num=0
-            for veh in location:
-                veh_loc.append((traj_with_coordinate[4+v_num*2][tt], traj_with_coordinate[5+v_num*2][tt]))
-                v_num += 1
             if len(distance[0]) == 0:
                 distance[0].append(0)
             else:
                 distance[0].append(traj_with_coordinate[1][tt-1] * 0.44704 / data_frequency + distance[0][-1])
-
-            # distance[1].append(distance[0][-1]-cal_distance(veh_loc[0],veh_loc[1]))
-            # distance[2].append(distance[1][-1]-cal_distance(veh_loc[1],veh_loc[2]))
-            distance[1].append(distance[0][-1]-geod.distance(veh_loc[0],veh_loc[1]).m)
-            distance[2].append(distance[1][-1]-geod.distance(veh_loc[1],veh_loc[2]).m)
-
+        print('veh1 traj get')
+        for veh in range(1, len(location)):
+            distance.append(distance_calculation_from_projection(
+                [(traj_with_coordinate[veh * 2 + 2][i], traj_with_coordinate[veh * 2 + 3][i])
+                 for i in range(len(traj_with_coordinate[0]))],
+                [(traj_with_coordinate[veh * 2 + 4][i], traj_with_coordinate[veh * 2 + 5][i])
+                 for i in range(len(traj_with_coordinate[0]))],
+                distance[veh-1], traj_with_coordinate[veh+1]))
+            print('veh'+str(veh+1)+' traj get')
         traj = traj + distance + heights
         traj = [item[:min([len(item1) for item1 in traj])] for item in traj]
         traj_dict.append(traj)
+
         save_traj(traj, folder_name, str(part)+'_'+str(platoon_number))
         part += 1
     return traj_dict
+
+def distance_calculation_from_projection(front_car_coor, my_coor, front_car_location, my_speed):
+    my_location = []
+    consider_pre_time = 50 #data_points, corresponding to 5 sec
+    for i in range(len(my_coor)):
+        p_me = my_coor[i]
+        p_target = front_car_coor[i]
+        speed_me = my_speed[i] * 0.44704  # mph to m/s
+        if (i - consider_pre_time < 0) or (i  > len(front_car_coor) - 2) or (speed_me < 2):
+            my_location.append(front_car_location[i] - geod.distance(p_target, p_me).m)
+        else:
+            me_last_distance = my_location[i - 1]
+            target_point_chain = front_car_coor[i - consider_pre_time: i + 2]
+            target_point_chain_locations = front_car_location[i - consider_pre_time: i + 2]
+            my_location.append(
+                projection(target_point_chain, target_point_chain_locations, p_me, me_last_distance, speed_me))
+    return my_location
+
+def projection(target_point_chain, target_point_chain_locations, p_me, me_last_location, speed_me):
+    data_frequency = 10
+    candidates_p_me_location = []
+    for i in range(len(target_point_chain) - 1):
+        traj_subsection = (target_point_chain[i], target_point_chain[i + 1])
+        In_segment, p_me_project = check_projection(traj_subsection, p_me)
+        if In_segment:
+            if i < len(target_point_chain) - 2:
+                gap = geod.distance(target_point_chain[i + 1], p_me_project).m
+                my_location = target_point_chain_locations[i + 1] - gap
+            else:#if p_me is somehow projected to the front of p_target
+                p_target = target_point_chain[-2]
+                gap = geod.distance(p_target, p_me_project).m
+                if gap > 10:
+                    print(gap)
+                    gap = geod.distance(p_target, p_me).m
+                my_location = target_point_chain_locations[-2] - gap
+            candidates_p_me_location.append(my_location)
+
+    if len(candidates_p_me_location) == 0:
+        p_target = target_point_chain[-2]
+        gap = geod.distance(p_target, p_me).m
+        my_location = target_point_chain_locations[-2] - gap
+    elif len(candidates_p_me_location) == 1:
+        my_location = candidates_p_me_location[0]
+    else:
+        my_speed_location = me_last_location + speed_me / data_frequency
+        my_location = candidates_p_me_location[np.argmin([abs(l-my_speed_location) for l in candidates_p_me_location])]
+    return my_location
+
+def check_projection(segment, point):
+    dx = segment[1][0] - segment[0][0]
+    dy = segment[1][1] - segment[0][1]
+    if dx == 0 and dy == 0:
+        return False, False
+    inner_product = (point[0] - segment[0][0]) * dx + (point[1] - segment[0][1]) * dy
+    if (inner_product >= 0) and (inner_product <= (dx * dx + dy * dy)):
+        projected_length = inner_product / (dx * dx + dy * dy)
+        projected_point = (segment[0][0] + projected_length * dx,
+                           segment[0][1] + projected_length * dy)
+        return True, projected_point
+    else:
+        return False, False
 
 def save_continuous_CF_traj(traj_dict, oscillation_set, folder_name):
     #need to distinguish different headway vehicle mode
@@ -198,7 +289,7 @@ def save_continuous_CF_traj(traj_dict, oscillation_set, folder_name):
 
 def speed_visulization(traj_dict, folder_name, MA_window = 2, extended_period = 50, overall=False, draw_veh=3):
     oscillation_set = read_oscillation_time(folder_name)
-    # save_continuous_CF_traj(traj_dict, oscillation_set, folder_name)
+    save_continuous_CF_traj(traj_dict, oscillation_set, folder_name)
 
     traj_color = ['green', 'red', 'blue']
     stablization_level = []
@@ -227,12 +318,21 @@ def speed_visulization(traj_dict, folder_name, MA_window = 2, extended_period = 
         traj_num = 0
         overall_traj = traj.copy()
         for traj in divided_traj:
+
             oscillations_LV = oscillation_statistics(traj[0], traj[1], data_frequency, fluent=True)
-            extended_traj, non_used_value = traj_by_oscillation_manual(overall_traj, [(oscillations_LV[0][0]-extended_period,
-                                                               oscillations_LV[0][0]+extended_period)])
+            if len(oscillations_LV[0]) > 0:
+                mid_point = oscillations_LV[0][0]
+            else:
+                print(selected_oscillation_set[traj_num][-1], ': can\'t find oscillation')
+                traj_num += 1
+                continue
+
+            extended_traj, non_used_value = traj_by_oscillation_manual(overall_traj, [(mid_point-extended_period,
+                                                               mid_point+extended_period)])
+
             extended_traj = extended_traj[0]
-            traj[0] = [tt - oscillations_LV[0][0] for tt in traj[0]]
-            extended_traj[0] = [tt - oscillations_LV[0][0] for tt in extended_traj[0]]
+            traj[0] = [tt - mid_point for tt in traj[0]]
+            extended_traj[0] = [tt - mid_point for tt in extended_traj[0]]
 
             # try:
             #     os.stat(os.path.dirname(__file__) + folder_name + 'split_traj/')
@@ -241,8 +341,7 @@ def speed_visulization(traj_dict, folder_name, MA_window = 2, extended_period = 
             # save_traj(extended_traj, folder_name + 'split_traj/', 'oscillation_' + str(selected_oscillation_set[traj_num][-1]))
             # traj_num+=1
             # continue
-            if selected_oscillation_set[traj_num][-1] == 48:
-                print('abv')
+
             oscillations_LV = oscillation_statistics(traj[0], traj[1], data_frequency, fluent=True)
             oscillations_FV = oscillation_statistics(traj[0], traj[2], data_frequency, fluent=True)
             if len(traj) > 3:
@@ -369,30 +468,32 @@ def speed_visulization(traj_dict, folder_name, MA_window = 2, extended_period = 
             ax.set_position([0.08, 0.35, 0.87, 0.2])
             for i in range(1, draw_veh + 1):
                 ax.plot(extended_traj[0], extended_traj[i], c=traj_color[i - 1], label='veh' + str(i))
-            for o in oscillations_LV:
-                ax.scatter(o[2], o[3], color='g', s=60)
-                ax.scatter(o[6], o[7], color='g', s=60)
-                ax.scatter(o[8], o[9], color='g', s=60)
-                ax.scatter(o[4], o[5], color='g', s=60)
-                ax.scatter(o[0], o[1], color='k', marker='*', s=60)
-            for o in oscillations_FV:
-                ax.scatter(o[2], o[3], color='r', s=36)
-                ax.scatter(o[6], o[7], color='r', s=36)
-                ax.scatter(o[8], o[9], color='r', s=36)
-                ax.scatter(o[4], o[5], color='r', s=36)
-                ax.scatter(o[0], o[1], color='k', marker='*', s=60)
-
-            for o in oscillations_TV:
-                if len(o) == 0:
-                    continue
-                if o[2] > oscillations_FV[0][4]:
-                    continue
-                if draw_veh < 3:
-                    continue
-                ax.scatter(o[2], o[3], color='b', s=36)
-                ax.scatter(o[6], o[7], color='b', s=36)
-                ax.scatter(o[8], o[9], color='b', s=36)
-                ax.scatter(o[4], o[5], color='b', s=36)
+            try:
+                for o in oscillations_LV:
+                    ax.scatter(o[2], o[3], color='g', s=60)
+                    ax.scatter(o[6], o[7], color='g', s=60)
+                    ax.scatter(o[8], o[9], color='g', s=60)
+                    ax.scatter(o[4], o[5], color='g', s=60)
+                    ax.scatter(o[0], o[1], color='k', marker='*', s=60)
+                for o in oscillations_FV:
+                    ax.scatter(o[2], o[3], color='r', s=36)
+                    ax.scatter(o[6], o[7], color='r', s=36)
+                    ax.scatter(o[8], o[9], color='r', s=36)
+                    ax.scatter(o[4], o[5], color='r', s=36)
+                    ax.scatter(o[0], o[1], color='k', marker='*', s=60)
+                for o in oscillations_TV:
+                    if len(o) == 0:
+                        continue
+                    if o[2] > oscillations_FV[0][4]:
+                        continue
+                    if draw_veh < 3:
+                        continue
+                    ax.scatter(o[2], o[3], color='b', s=36)
+                    ax.scatter(o[6], o[7], color='b', s=36)
+                    ax.scatter(o[8], o[9], color='b', s=36)
+                    ax.scatter(o[4], o[5], color='b', s=36)
+            except:
+                pass
             plt.xlim(extended_traj[0][0], extended_traj[0][-1])
             plt.ylim(used_y_limit)
             plt.ylabel('speed(mph)', fontsize=20)
@@ -420,12 +521,13 @@ def speed_visulization(traj_dict, folder_name, MA_window = 2, extended_period = 
             plt.close()
 
             traj_num += 1
-    # file = open(os.path.dirname(__file__) + folder_name + 'oscillation_info','wb')
-    # pickle.dump(oscillation_info, file)
-    # file.close()
-    # file = open(os.path.dirname(__file__) + folder_name + 'complete_oscillation_info','wb')
-    # pickle.dump(complete_oscillation_info, file)
-    # file.close()
+    file = open(os.path.dirname(__file__) + folder_name + 'oscillation_info','wb')
+    pickle.dump(oscillation_info, file)
+    file.close()
+    file = open(os.path.dirname(__file__) + folder_name + 'complete_oscillation_info','wb')
+    pickle.dump(complete_oscillation_info, file)
+    file.close()
+
 
 def available_in_all(location, start_end_time, veh_num):
     i = 0

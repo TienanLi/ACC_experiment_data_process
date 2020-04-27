@@ -12,7 +12,7 @@ def main(folder_name,platoon_number):
 
 
 if __name__=='__main__':
-    experiment_date = [12]
+    experiment_date = [8]
     for date in experiment_date:
         print(date)
         main('/platooned_data/03-%s-2020/'%(str(date).zfill(2)),platoon_number=3)
