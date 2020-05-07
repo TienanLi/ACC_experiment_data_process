@@ -1,19 +1,19 @@
-import folium
+# import folium
 import os
 import time
 import pickle
 import numpy as np
-import branca.colormap as cm
+# import branca.colormap as cm
 import matplotlib.pyplot as plt
-# import plotly.graph_objects as go
 import matplotlib.cm as pcm
 import geopy.distance as geod
-
+from matplotlib.ticker import PercentFormatter
 from matplotlib import rc
 from math import ceil, floor
 from Analyze_functions_multiple_veh import overlap_period
-from base_functions import find_nearest_index, moving_average, cal_distance, get_a_part_before_a_point
-from oscillation_functions import oscillation_statistics, traj_by_oscillation, save_oscillations
+from base_functions import find_nearest_index, moving_average, get_a_part_before_a_point, \
+    cal_ita, cal_ita_dynamic_wave_fix_tau0
+from oscillation_functions import oscillation_statistics, save_oscillations
 from matplotlib.collections import LineCollection
 
 global data_frequency
@@ -288,9 +288,8 @@ def save_continuous_CF_traj(traj_dict, oscillation_set, folder_name):
 
 
 def speed_visulization(traj_dict, folder_name, MA_window = 2, extended_period = 50, overall=False, draw_veh=3):
-    oscillation_set = read_oscillation_time(folder_name)
-    save_continuous_CF_traj(traj_dict, oscillation_set, folder_name)
-
+    # save_continuous_CF_traj(traj_dict, oscillation_set, folder_name)
+    first_fig = 'oblique_traj' #oblique_traj or spacing
     traj_color = ['green', 'red', 'blue']
     stablization_level = []
     oscillation_info = []
@@ -300,19 +299,44 @@ def speed_visulization(traj_dict, folder_name, MA_window = 2, extended_period = 
             for i in range(1, len(traj)):
                 traj[i] = moving_average(traj[i], MA_window * data_frequency)
         if overall == True:
+            v_diff = [traj[1][i] - traj[2][i] for i in range(len(traj[0])) if traj[2][i] > 5]
+            d_diff = [traj[4][i] - traj[5][i] for i in range(len(traj[0])) if traj[2][i] > 5]
+            e_diff = [traj[7][i] - traj[8][i] for i in range(len(traj[0])) if traj[2][i] > 5]
+            fig = plt.figure(figsize=(7, 4), dpi=100)
+            plt.hist(v_diff, bins = np.arange(-1,1.1,.05), weights=np.ones(len(v_diff)) / len(v_diff))
+            plt.gca().yaxis.set_major_formatter(PercentFormatter(1))
+            plt.title('speed error (mph)')
+            plt.savefig('v_diff.png')
+            plt.close()
+            fig = plt.figure(figsize=(7, 4), dpi=100)
+            plt.hist(d_diff, bins = np.arange(0, 8, .5), weights=np.ones(len(d_diff)) / len(d_diff))
+            plt.gca().yaxis.set_major_formatter(PercentFormatter(1))
+            plt.title('location error (m)')
+            plt.savefig('d_diff.png')
+            plt.close()
+            fig = plt.figure(figsize=(7, 4), dpi=100)
+            plt.hist(e_diff, weights=np.ones(len(e_diff)) / len(e_diff))
+            plt.gca().yaxis.set_major_formatter(PercentFormatter(1))
+            plt.title('elevation error (m)')
+            plt.savefig('e_diff.png')
+            plt.close()
+
             Time_range = np.arange(ceil(min(traj[0]) / 60) * 60, max(traj[0]), 30)
             fig = plt.figure(figsize=(7, 4), dpi=100)
             ax = fig.add_subplot(111)
             ax.set_position([0.08, 0.2, 0.82, 0.7])
-            for i in range(1, len(traj)):
-                plt.plot(traj[0], traj[i], c=traj_color[i - 1], label='veh' + str(i))
+            plt.plot(traj[0], [traj[1][i] - traj[2][i] for i in range(len(traj[0]))], label='speed diff (mph)')
+            plt.plot(traj[0], [traj[4][i] - traj[5][i] for i in range(len(traj[0]))], label='location diff (m)')
+            plt.plot(traj[0], [traj[7][i] - traj[8][i] for i in range(len(traj[0]))], label='elevation diff (m)')
             plt.legend()
             plt.xticks(Time_range)
             plt.xlabel('time (s)', fontsize=20)
             plt.ylabel('speed(mph)', fontsize=20)
             plt.grid(True)
             plt.show()
+
             continue
+        oscillation_set = read_oscillation_time(folder_name)
         divided_traj, selected_oscillation_set = traj_by_oscillation_manual(traj, oscillation_set)
         y_limit=[[20, 50], [30, 60], [50, 80]]
         traj_num = 0
@@ -408,11 +432,11 @@ def speed_visulization(traj_dict, folder_name, MA_window = 2, extended_period = 
             # traj_num+=1
             # continue
 
+            X_LIMIT = [extended_traj[0][0] + 35, extended_traj[0][-1] - 25]
             fig = plt.figure(figsize=(width, 15), dpi=100)
-            first_fig = 'oblique_traj'
             bx = fig.add_subplot(311)
             bx.set_position([0.08, 0.65, 0.87, 0.2])
-            plt.xlim(extended_traj[0][0], extended_traj[0][-1])
+            plt.xlim(X_LIMIT)
             plt.grid(True)
             plt.title('OSCILLATION: ' + str(selected_oscillation_set[traj_num][-1]) +
                       ', HEADWAY: ' + selected_oscillation_set[traj_num][2] +
@@ -494,24 +518,45 @@ def speed_visulization(traj_dict, folder_name, MA_window = 2, extended_period = 
                     ax.scatter(o[4], o[5], color='b', s=36)
             except:
                 pass
-            plt.xlim(extended_traj[0][0], extended_traj[0][-1])
+            plt.xlim(X_LIMIT)
             plt.ylim(used_y_limit)
             plt.ylabel('speed(mph)', fontsize=20)
             plt.grid(True)
             plt.legend(loc=1)
 
 
-
             cx = fig.add_subplot(313)
             cx.set_position([0.08, 0.1, 0.87, 0.2])
-            for i in range(1, draw_veh + 1):
-                cx.plot(extended_traj[0], extended_traj[i+6], c=traj_color[i - 1], label='veh' + str(i))
+            # for i in range(1, draw_veh + 1):
+            #     cx.plot(extended_traj[0], extended_traj[i+6], c=traj_color[i - 1], label='veh' + str(i))
+            # plt.ylabel('elevation (m)', fontsize=20)
+            # plt.ylim([np.mean(extended_traj[7])-25, np.mean(extended_traj[7])+25])
+
+            t = extended_traj[0]
+            d_HV = extended_traj[4]
+            d_ACC1 = extended_traj[5]
+            d_ACC2 = extended_traj[6]
+            congested_s = 17
+            if selected_oscillation_set[traj_num][2] == '3':
+                tau0 = .9
+            else:
+                tau0 = .5
+            # t_ita_ACC1,ita_ACC1=cal_ita(t,d_HV,t, d_ACC1,sim_freq=0.1,w=congested_s/tau0,k=1/congested_s)
+            # t_ita_ACC2,ita_ACC2=cal_ita(t,d_ACC1,t,d_ACC2,sim_freq=0.1,w=congested_s/tau0,k=1/congested_s)
+            t_ita_ACC1,ita_ACC1=cal_ita_dynamic_wave_fix_tau0(t,d_HV,t,d_ACC1,tau0,congested_s)
+            t_ita_ACC2,ita_ACC2=cal_ita_dynamic_wave_fix_tau0(t,d_ACC1,t,d_ACC2,tau0,congested_s)
+            ita_range = .5
+            plt.ylim([max(ita_range, np.nanmean(ita_ACC1))-ita_range, max(ita_range, np.nanmean(ita_ACC1))+ita_range])
+
+            cx.plot(t_ita_ACC1, ita_ACC1, c=traj_color[1], label='veh2')
+            if draw_veh == 3:
+                cx.plot(t_ita_ACC2, ita_ACC2, c=traj_color[2], label='veh3')
+            plt.ylabel('$\\eta$', fontsize=20)
+
             plt.legend(loc=1)
-            plt.xlim(extended_traj[0][0], extended_traj[0][-1])
-            plt.ylabel('elevation (m)', fontsize=20)
+            plt.xlim(X_LIMIT)
             plt.xlabel('time (s)', fontsize=20)
             plt.grid(True)
-            plt.ylim([np.mean(extended_traj[7])-25, np.mean(extended_traj[7])+25])
             try:
                 os.stat(os.path.dirname(__file__) + folder_name + 'figures_GPS_data/')
             except:
@@ -521,12 +566,12 @@ def speed_visulization(traj_dict, folder_name, MA_window = 2, extended_period = 
             plt.close()
 
             traj_num += 1
-    file = open(os.path.dirname(__file__) + folder_name + 'oscillation_info','wb')
-    pickle.dump(oscillation_info, file)
-    file.close()
-    file = open(os.path.dirname(__file__) + folder_name + 'complete_oscillation_info','wb')
-    pickle.dump(complete_oscillation_info, file)
-    file.close()
+    # file = open(os.path.dirname(__file__) + folder_name + 'oscillation_info','wb')
+    # pickle.dump(oscillation_info, file)
+    # file.close()
+    # file = open(os.path.dirname(__file__) + folder_name + 'complete_oscillation_info','wb')
+    # pickle.dump(complete_oscillation_info, file)
+    # file.close()
 
 
 def available_in_all(location, start_end_time, veh_num):
@@ -588,3 +633,4 @@ def traj_by_oscillation_manual(traj, oscillation_set):
         divided_traj.append([i[s:e] for i in traj])
         selected_oscillation_set.append(oscillation)
     return divided_traj, selected_oscillation_set
+

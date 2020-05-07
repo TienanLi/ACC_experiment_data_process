@@ -98,22 +98,31 @@ def scatter_plot(oscillation_features, x_column, y_column, x_label, y_label, tit
     Y = []
     for d in oscillation_features:
         if filter_column is not None:
-            if d[filter_column] != filter_label:
-                continue
+            if isinstance(filter_column, list):
+                PASS = False
+                for i in range(len(filter_column)):
+                    if d[filter_column[i]] != filter_label[i]:
+                        PASS = True
+                if PASS:
+                    continue
+            else:
+                if d[filter_column] != filter_label:
+                    continue
         X.append(d[x_column])
         Y.append(d[y_column])
+    figure_scatter(X,Y,x_label,y_label,title)
+
+def figure_scatter(X,Y,x_label,y_label,title):
     coef, intercept, p_value = linear_regression(X,Y)
     print('coef:',coef,'intercept:',intercept,'p-value:',round(p_value,3))
     plt.figure()
     plt.scatter(X, Y)
-    plt.plot([min(X), max(X)], 
-             [min(X) * coef + intercept, max(X) * coef + intercept], c='k')
+    plt.plot([min(X), max(X)], [min(X) * coef + intercept, max(X) * coef + intercept], c='k')
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     plt.title(title)
-
-
-def bar_plot_format(data_group, bar, x_label, y_label, line_labels, xtick_labels):
+    
+def bar_plot_format(data_group, bar, x_label, y_label, line_labels, xtick_labels, label_loc = 1):
     color_group = ['r', 'g', 'b']
     fig = plt.figure(figsize=(5, 5), dpi=300)
     ax = fig.add_subplot(111)
@@ -135,10 +144,10 @@ def bar_plot_format(data_group, bar, x_label, y_label, line_labels, xtick_labels
 
         for i in range(len(mean_value)):
             if i >= 1:
-                print(mean_value[i][4], mean_value[i][6], round(mean_value[i][0], 2), mean_value[i - 1][6],
-                      round(mean_value[i - 1][0], 2), 'p-value',
-                      stats.ttest_ind(mean_value[i][5], mean_value[i - 1][5])[1])
-                print('\n')
+                for k in range(1,i+1):
+                    print(mean_value[i][4], mean_value[i][6],  mean_value[i - k][6],
+                          'p-value',
+                          round(stats.ttest_ind(mean_value[i][5], mean_value[i - k][5])[1],3))
         plt.plot(np.arange(1, len(mean_value) + 1), [np.mean(mv[5]) for mv in mean_value],
                  linewidth=2, label=line_labels[label_num], color=color_group[label_num], linestyle='-')
         plt.scatter(np.arange(1, len(mean_value) + 1), [np.mean(mv[5]) for mv in mean_value],
@@ -148,18 +157,26 @@ def bar_plot_format(data_group, bar, x_label, y_label, line_labels, xtick_labels
             stick_line_style = '--'
             stick_line_width = 1.5
             for i in range(len(mean_value)):
-                line2_1 = plt.plot([i + 1, i + 1], [mean_value[i][1], mean_value[i][2]], color=color_group[label_num],
-                                   linewidth=stick_line_width, alpha=1, linestyle=stick_line_style)
+                line2_1 = plt.plot([i + 1, i + 1], [mean_value[i][1], mean_value[i][2]],color=color_group[label_num],
+                 linewidth=stick_line_width, alpha=1, linestyle=stick_line_style)
                 plt.plot([i + 1 - stick_width, i + 1 + stick_width], [mean_value[i][1], mean_value[i][1]],
-                         color=color_group[label_num],
-                         linewidth=stick_line_width, alpha=1, linestyle=stick_line_style)
+                 color=color_group[label_num],
+                 linewidth=stick_line_width, alpha=1, linestyle=stick_line_style)
                 plt.plot([i + 1 - stick_width, i + 1 + stick_width], [mean_value[i][2], mean_value[i][2]],
-                         color=color_group[label_num],
-                         linewidth=stick_line_width, alpha=1, linestyle=stick_line_style)
+                 color=color_group[label_num],
+                 linewidth=stick_line_width, alpha=1, linestyle=stick_line_style)
         label_num += 1
         overall_mean_value.append(mean_value)
+        print('\n')
+        
+    for j in range(len(overall_mean_value)):
+        if j >= 1:
+            for i in range(len(mean_value)):
+                print(overall_mean_value[j][i][6], overall_mean_value[j][i][4], 
+                      overall_mean_value[j-1][i][4],  'p-value',
+                      round(stats.ttest_ind(overall_mean_value[j][i][5], overall_mean_value[j-1][i][5])[1],3))
 
-    plt.legend(loc=1)
+    plt.legend(loc = label_loc)
     plt.xticks(np.arange(1, len(mean_value) + 1), xtick_labels)
     plt.xlabel(x_label, fontsize=14)
     plt.ylabel(y_label, fontsize=14)

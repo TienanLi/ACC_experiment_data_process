@@ -3,9 +3,9 @@ import numpy as np
 import pandas as pd
 import pywt
 from scipy.signal import find_peaks
-from sklearn import linear_model
+from sklearn import linear_model, metrics
 from scipy import stats
-from math import sin, cos, sqrt, atan2, radians
+from math import sin, cos, sqrt, atan2, radians, floor
 from pyproj import Proj, transform
 
 def draw_fig(x,x_label,y,y_label):
@@ -73,8 +73,8 @@ def cal_ita(t,d,t_f,d_f,sim_freq,w,k):
                       int(min(len(t_f), (w_function(t_f[i]-t[0], w, 1, k)+3) / sim_freq)))
             y_list=[abs(-w*(t[j]-t_f[i])+d_f[i]-d[j]) for j in r]
             tau_i=t_f[i]-(y_list.index(min(y_list))*sim_freq+t[r[0]])
-            eta=tau_i * ((1 / k / w))
-            # eta = tau_i
+            # eta=tau_i * ((1 / k / w))
+            eta = tau_i
             if eta>5 or eta<0:
                 eta=np.nan
             ita.append(eta)
@@ -86,6 +86,24 @@ def cal_ita(t,d,t_f,d_f,sim_freq,w,k):
 def w_function(x,w,ita,k):
     y=(x-(1 / w / k)*ita)
     return y
+
+def cal_ita_dynamic_wave_fix_tau0(t,d,t_f,d_f,tau0,stand_still_spacing):
+    ita=[]
+    t_ita=[]
+    for i in range(len(t_f)):
+        try:
+            lead_position_t_before = d[find_nearest_index(t,t_f[i]-tau0)]
+            my_position = d_f[i]
+            # eta = lead_position_t_before - my_position
+            eta = (lead_position_t_before - my_position) / stand_still_spacing
+            if eta<0:
+                eta=np.nan
+            ita.append(eta)
+            t_ita.append(t_f[i])
+        except:
+            break
+    return t_ita,ita
+
 
 def moving_average(a, n) :
     n=int(n)
@@ -221,15 +239,16 @@ def ACC_in_use(speed_time_series,speed,LEAD_INFO_time_series,front_space,relativ
         traj_info.append((speed_time_series[ss:se],speed[ss:se],LEAD_INFO_time_series[ls:le],front_space[ls:le],relative_speed[ls:le]))
     return traj_info
 
-def linear_regression(X,Y):
+def linear_regression(X, Y):
     X=np.array(X).reshape(len(X),1)
     Y=np.array(Y).reshape(len(Y),1)
     regr = linear_model.LinearRegression()
     regr.fit(X, Y)
     y_pred = regr.predict(X)
 
+    print('R2=',metrics.r2_score(Y, y_pred))
     params = np.append(regr.intercept_, regr.coef_)
-    params = np.round(params, 2)
+    params = np.round(params, 3)
 
     newX = np.append(np.ones((len(X),1)), X, axis=1)
     MSE = (sum((Y-y_pred)**2))/(len(newX)-len(newX[0]))
@@ -238,8 +257,8 @@ def linear_regression(X,Y):
     ts_b = params / sd_b
     p_values = [2 * (1 - stats.t.cdf(np.abs(i), (len(newX) - 1))) for i in ts_b]
 
-    return params[1],params[0],p_values[1]
 
+    return params[1],params[0],p_values[1]
 
 
 def cal_distance(point_1,point_2):
@@ -287,3 +306,23 @@ def WT_MEXH(y, frequency_bound = 32, prominence = 1):
     peak_wt = find_peaks(total_energy, prominence=prominence)[0]  # use prominence or width
 
     return peak_wt, total_energy
+
+def time_of_week_to_hms(time_point, time_zone):
+    hour = np.floor(time_point / (60 * 60) % 24) + time_zone
+    minute = np.floor(time_point / (60 * 60) % 1 * 60)
+    sec = np.floor(time_point / (60 * 60) % 1 * 60 % 1 * 60)
+    return hour, minute, sec
+
+def exclude_outlier(data, split = 5, exclude_threshold = 1):
+    X = data[0]
+    slots = np.arange(min(X), max(X) + 1, (max(X) - min(X)) / split)
+    included_data = pd.DataFrame()
+    for i in range(len(slots) - 1):
+        selected = data[(data[0] >= slots[i]) & (data[0] <= slots[i + 1])]
+        y_mean = np.mean(selected[1])
+        y_std = np.std(selected[1])
+        upper_bound = y_mean + y_std * exclude_threshold
+        lower_bound = y_mean - y_std * exclude_threshold
+        selected = selected[(selected[1] >= lower_bound) & (selected[1] <= upper_bound)]
+        included_data = pd.concat([included_data, selected])
+    return included_data
