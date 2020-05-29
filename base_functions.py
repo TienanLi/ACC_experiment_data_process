@@ -5,7 +5,9 @@ import pywt
 from scipy.signal import find_peaks
 from sklearn import linear_model, metrics
 from scipy import stats
-from math import sin, cos, sqrt, atan2, radians, floor
+from math import sin, cos, sqrt, atan2, radians, floor, log10
+from scipy.interpolate import griddata
+from mpl_toolkits import mplot3d
 from pyproj import Proj, transform
 
 def draw_fig(x,x_label,y,y_label):
@@ -72,9 +74,16 @@ def cal_ita(t,d,t_f,d_f,sim_freq,w,k):
             r=range(int(max(0, (w_function(t_f[i]-t[0], w, 1, k)-3)  / sim_freq)),
                       int(min(len(t_f), (w_function(t_f[i]-t[0], w, 1, k)+3) / sim_freq)))
             y_list=[abs(-w*(t[j]-t_f[i])+d_f[i]-d[j]) for j in r]
-            tau_i=t_f[i]-(y_list.index(min(y_list))*sim_freq+t[r[0]])
-            # eta=tau_i * ((1 / k / w))
-            eta = tau_i
+            leader_t = (y_list.index(min(y_list)) * sim_freq + t[r[0]])
+            #use t ratio
+            tau_i=t_f[i]-leader_t
+            eta=tau_i / ((1 / k / w))
+            # eta = tau_i
+
+            #use d ratio
+            # d_i = d[find_nearest_index(t,leader_t)] - d_f[i]
+            # eta = d_i / ((1 / k ))
+
             if eta>5 or eta<0:
                 eta=np.nan
             ita.append(eta)
@@ -96,8 +105,8 @@ def cal_ita_dynamic_wave_fix_tau0(t,d,t_f,d_f,tau0,stand_still_spacing):
             my_position = d_f[i]
             # eta = lead_position_t_before - my_position
             eta = (lead_position_t_before - my_position) / stand_still_spacing
-            if eta<0:
-                eta=np.nan
+            # if eta<0:
+            #     eta=np.nan
             ita.append(eta)
             t_ita.append(t_f[i])
         except:
@@ -239,16 +248,17 @@ def ACC_in_use(speed_time_series,speed,LEAD_INFO_time_series,front_space,relativ
         traj_info.append((speed_time_series[ss:se],speed[ss:se],LEAD_INFO_time_series[ls:le],front_space[ls:le],relative_speed[ls:le]))
     return traj_info
 
-def linear_regression(X, Y):
+def linear_regression(X, Y, weight = None):
     X=np.array(X).reshape(len(X),1)
     Y=np.array(Y).reshape(len(Y),1)
+    print('size:',len(X))
     regr = linear_model.LinearRegression()
-    regr.fit(X, Y)
+    regr.fit(X, Y, sample_weight = weight)
     y_pred = regr.predict(X)
 
-    print('R2=',metrics.r2_score(Y, y_pred))
+    print('R2=',round(metrics.r2_score(Y, y_pred),3))
     params = np.append(regr.intercept_, regr.coef_)
-    params = np.round(params, 3)
+    params = np.array([round_sig(p, sig = 2) for p in params])
 
     newX = np.append(np.ones((len(X),1)), X, axis=1)
     MSE = (sum((Y-y_pred)**2))/(len(newX)-len(newX[0]))
@@ -256,10 +266,32 @@ def linear_regression(X, Y):
     sd_b = np.sqrt(var_b)
     ts_b = params / sd_b
     p_values = [2 * (1 - stats.t.cdf(np.abs(i), (len(newX) - 1))) for i in ts_b]
-
-
+    print('p_value intercept:', round(p_values[0],3), 'coef:', round(p_values[1],3))
     return params[1],params[0],p_values[1]
 
+def multi_linear_regression(X, y, weight = None, X_index = None):
+    print('size:',len(X))
+    lm = linear_model.LinearRegression()
+    lm.fit(X, y)
+    params = np.append(lm.intercept_, lm.coef_)
+    predictions = lm.predict(X)
+    newX = pd.DataFrame({"Constant": np.ones(len(X))}).join(pd.DataFrame(X))
+    MSE = (sum((y - predictions) ** 2)) / (len(newX) - len(newX.columns))
+    var_b = MSE * (np.linalg.inv(np.dot(newX.T, newX)).diagonal())
+    sd_b = np.sqrt(var_b)
+    ts_b = params / sd_b
+    p_values = [2 * (1 - stats.t.cdf(np.abs(i), (len(newX) - 1))) for i in ts_b]
+    sd_b = np.round(sd_b, 3)
+    ts_b = np.round(ts_b, 3)
+    p_values = np.round(p_values, 3)
+    params = np.round(params, 4)
+    myDF3 = pd.DataFrame()
+    if X_index is not None:
+        myDF3['Variable']=['intercept']+X_index
+    myDF3["Coefficients"], myDF3["Standard Errors"], myDF3["t values"], myDF3["p values"] = \
+        [params, sd_b, ts_b,p_values]
+    # print(myDF3)
+    return myDF3
 
 def cal_distance(point_1,point_2):
     # approximate radius of earth in m
@@ -287,7 +319,7 @@ def oblique(data):
 
 def get_stable_speed(speed):
     stable_speed = [35, 45, 65]
-    if speed > 62:
+    if speed > 61:
         return stable_speed[2]
     elif speed > 42:
         return stable_speed[1]
@@ -316,6 +348,7 @@ def time_of_week_to_hms(time_point, time_zone):
 def exclude_outlier(data, split = 5, exclude_threshold = 1):
     X = data[0]
     slots = np.arange(min(X), max(X) + 1, (max(X) - min(X)) / split)
+    # slots = [5,22,27,33,37,43,47,57,63,67,70]
     included_data = pd.DataFrame()
     for i in range(len(slots) - 1):
         selected = data[(data[0] >= slots[i]) & (data[0] <= slots[i + 1])]
@@ -326,3 +359,34 @@ def exclude_outlier(data, split = 5, exclude_threshold = 1):
         selected = selected[(selected[1] >= lower_bound) & (selected[1] <= upper_bound)]
         included_data = pd.concat([included_data, selected])
     return included_data
+
+def threeD_contour_interploted(X,Y):
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(X[:,0], X[:,1], Y)
+    a, b = np.mgrid[min(X[:,0]):max(X[:,0]):10j, min(X[:,1]):max(X[:,1]):10j]
+    z = griddata(X, Y, (a, b), method='linear')
+    z = np.array(z)
+    z = z.reshape((len(a), len(b)))
+    ax.plot_surface(a,b,z)
+
+def round_sig(x, sig=2):
+    digit = len(str(abs(int(x))))
+    sig = digit + sig
+    return round(x, sig - int(floor(log10(abs(x)))) - 1)
+
+def assign_weight(data, slots):
+    weight = []
+    for i in range(len(slots) - 1):
+        upper_bound = slots[i + 1]
+        lower_bound = slots[i]
+        if i == 0:
+            selected = data[(data >= lower_bound) & (data <= upper_bound)]
+        else:
+            selected = data[(data > lower_bound) & (data <= upper_bound)]
+        count_num = len(selected)
+        print('range:',slots[i],slots[i+1],'sample:',len(selected))
+        if count_num > 0:
+            weight += [1/count_num for j in range(count_num)]
+
+    return weight

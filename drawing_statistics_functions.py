@@ -4,12 +4,23 @@ import os
 from scipy import stats
 from base_functions import linear_regression
 
-def box_plot(oscillation_features, impact_factor_column, feature_column, impact_factor_label, x_label, y_label, title = ''):
+def box_plot(oscillation_features, impact_factor_column, feature_column, impact_factor_label, x_label, y_label, title = '', filter_column=None, filter_label=None):
     #for one features in one figure
     data_group = {}
     for l in impact_factor_label:
         data_group[l] = []
     for d in oscillation_features:
+        if filter_column is not None:
+            if isinstance(filter_column, list):
+                PASS = False
+                for i in range(len(filter_column)):
+                    if d[filter_column[i]] != filter_label[i]:
+                        PASS = True
+                if PASS:
+                    continue
+            else:
+                if d[filter_column] != filter_label:
+                    continue
         data_group[d[impact_factor_column]].append(d[feature_column])
     fig = plt.figure(figsize=(5, 5), dpi=300)
     ax = fig.add_subplot(111)
