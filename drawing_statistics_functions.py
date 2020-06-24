@@ -4,7 +4,7 @@ import os
 from scipy import stats
 from base_functions import linear_regression
 
-def box_plot(oscillation_features, impact_factor_column, feature_column, impact_factor_label, x_label, y_label, title = '', filter_column=None, filter_label=None):
+def box_plot(oscillation_features, impact_factor_column, feature_column, impact_factor_label, x_label, y_label, title = '', filter_column=None, filter_label=None,ylim=None):
     #for one features in one figure
     data_group = {}
     for l in impact_factor_label:
@@ -34,19 +34,23 @@ def box_plot(oscillation_features, impact_factor_column, feature_column, impact_
                  np.std(data_points_y),#3 y std
                  label,#4 label
                  data_points_y))#5 y samples
+        print(label,np.mean(data_points_y),np.std(data_points_y),len(data_points_y))
     for i in range(len(mean_value)):
         if i>=1:
             for k in range(1,i+1):
                 print(mean_value[i][4],round(mean_value[i][0], 2), mean_value[i-k][4], round(mean_value[i-k][0], 2), 'p-value', round(stats.ttest_ind(mean_value[i][5], mean_value[i-k][5])[1],3))
         
-    plt.plot([i+1 for i in range(len(data_group.keys()))],[np.percentile(mv[5],50) for mv in mean_value],color='orange',linestyle='--',linewidth=1)
+    plt.plot([i+1 for i in range(len(data_group.keys()))],[np.mean(mv[5]) for mv in mean_value],color='orange',linestyle='--',linewidth=1)
     box_data=[]
     for mv in mean_value:
         box_data.append(mv[5])
-    plt.boxplot(box_data,whis=[5,95],labels=data_group.keys())
-    plt.xlabel(x_label,fontsize=14)
-    plt.ylabel(y_label,fontsize=14)
+    plt.boxplot(box_data,usermedians=[mv[0] for mv in mean_value],showfliers=False,
+                whis=[10,90],labels=['low','medium','high'])
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
     plt.title(title)
+    if ylim is not None:
+        plt.ylim(ylim)
     plt.show()
 
     return mean_value
