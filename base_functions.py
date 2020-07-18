@@ -81,8 +81,8 @@ def cal_ita(t,d,t_f,d_f,sim_freq,w,k):
             # eta = tau_i
 
             #use d ratio
-            # d_i = d[find_nearest_index(t,leader_t)] - d_f[i]
-            # eta = d_i / ((1 / k ))
+            d_i = d[find_nearest_index(t,leader_t)] - d_f[i]
+            eta = d_i / ((1 / k ))
 
             if eta>5 or eta<0:
                 eta=np.nan
@@ -348,7 +348,7 @@ def time_of_week_to_hms(time_point, time_zone):
 def exclude_outlier(data, split = 5, exclude_threshold = 1):
     X = data[0]
     slots = np.arange(min(X), max(X) + 1, (max(X) - min(X)) / split)
-    # slots = [5,22,27,33,37,43,47,57,63,67,70]
+    # slots = [0,33,37,53,57,63,67,70]
     included_data = pd.DataFrame()
     for i in range(len(slots) - 1):
         selected = data[(data[0] >= slots[i]) & (data[0] <= slots[i + 1])]
@@ -358,6 +358,7 @@ def exclude_outlier(data, split = 5, exclude_threshold = 1):
         lower_bound = y_mean - y_std * exclude_threshold
         selected = selected[(selected[1] >= lower_bound) & (selected[1] <= upper_bound)]
         included_data = pd.concat([included_data, selected])
+    # included_data = data
     return included_data
 
 def threeD_contour_interploted(X,Y):
@@ -390,3 +391,40 @@ def assign_weight(data, slots):
             weight += [1/count_num for j in range(count_num)]
 
     return weight
+
+def min_speed_fine_measurment(oscillations_LV, oscillations_FV, v_LV, v_FV, time_axis):
+    LV_cruise = v_LV[find_nearest_index(time_axis, oscillations_LV[0][6]):
+                     find_nearest_index(time_axis, oscillations_FV[0][8])]
+    FV_cruise = v_FV[find_nearest_index(time_axis, oscillations_LV[0][6]):
+                     find_nearest_index(time_axis, oscillations_FV[0][8])]
+    time_cruise = time_axis[find_nearest_index(time_axis, oscillations_LV[0][6]):
+                     find_nearest_index(time_axis, oscillations_FV[0][8])]
+
+    for i in range(1, len(LV_cruise)):
+        speed_diff = LV_cruise[i] - FV_cruise[i]
+        early_speed_diff = LV_cruise[i-1] - FV_cruise[i-1]
+        if (speed_diff <= 0) and (early_speed_diff >= 0):
+            break
+    LV_min = min(LV_cruise[:i])
+    FV_min = min(FV_cruise[:i])
+    LV_min_time = time_cruise[np.argmin(LV_cruise[:i])]
+    FV_min_time = time_cruise[np.argmin(FV_cruise[:i])]
+    oscillations_LV[0][0] = LV_min_time
+    oscillations_LV[0][1] = LV_min
+    oscillations_FV[0][0] = FV_min_time
+    oscillations_FV[0][1] = FV_min
+
+    return oscillations_LV, oscillations_FV
+
+def min_speed_fine_measurment_2(oscillations_LV, oscillations_FV, v_LV, time_axis):
+    LV_cruise = v_LV[find_nearest_index(time_axis, oscillations_FV[0][6]):
+                     find_nearest_index(time_axis, oscillations_FV[0][8])]
+    time_cruise = time_axis[find_nearest_index(time_axis, oscillations_FV[0][6]):
+                     find_nearest_index(time_axis, oscillations_FV[0][8])]
+
+    LV_min = min(LV_cruise)
+    LV_min_time = time_cruise[np.argmin(LV_cruise)]
+    oscillations_LV[0][0] = LV_min_time
+    oscillations_LV[0][1] = LV_min
+
+    return oscillations_LV

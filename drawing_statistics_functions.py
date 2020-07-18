@@ -4,7 +4,7 @@ import os
 from scipy import stats
 from base_functions import linear_regression
 
-def box_plot(oscillation_features, impact_factor_column, feature_column, impact_factor_label, x_label, y_label, title = '', filter_column=None, filter_label=None,ylim=None):
+def box_plot(oscillation_features, impact_factor_column, feature_column, impact_factor_label, x_label, y_label, title = '', filter_column=None, filter_label=None,ylim=None,yticks=None):
     #for one features in one figure
     data_group = {}
     for l in impact_factor_label:
@@ -51,6 +51,8 @@ def box_plot(oscillation_features, impact_factor_column, feature_column, impact_
     plt.title(title)
     if ylim is not None:
         plt.ylim(ylim)
+    if ylim is not None:
+        plt.yticks(yticks)
     plt.show()
 
     return mean_value
