@@ -20,21 +20,21 @@ def main_multi_day(date_group):
             headway_period = {'1': headway_1_period[date], '3': headway_3_period[date]}
             if len(headway_period[headway]) == 0:
                 continue
-            # traj_dict = read_data_from_summary_csv_overall('/platooned_data/03-%s-2020/'%(str(date).zfill(2)),
-            #                                                headway_period[headway], date)
-            # equilibrium_status_ACC1, equilibrium_status_ACC2 = find_equilibrium(traj_dict, date, headway)
+            traj_dict = read_data_from_summary_csv_overall('/platooned_data/03-%s-2020/'%(str(date).zfill(2)),
+                                                           headway_period[headway], date)
+            equilibrium_status_ACC1, equilibrium_status_ACC2 = find_equilibrium(traj_dict, date, headway)
 
-            equilibrium_status_ACC1, equilibrium_status_ACC2 = \
-                read_data_from_equlirbium_csv('/platooned_data/03-08-2020/equilibrium_traj/normal',
-                                                           headway_period[headway])
+            # equilibrium_status_ACC1, equilibrium_status_ACC2 = \
+            #     read_data_from_equlirbium_csv('/platooned_data/03-08-2020/equilibrium_traj/power',
+            #                                                headway_period[headway])
 
-            # disturbance_start_end = read_disturbance('/platooned_data/03-%s-2020/'%(str(date).zfill(2)))
-            # equilibrium_status_ACC1 = disturbance_threshold(equilibrium_status_ACC1, disturbance_start_end)
-            # equilibrium_status_ACC2 = disturbance_threshold(equilibrium_status_ACC2, disturbance_start_end)
+            disturbance_start_end = read_disturbance('/platooned_data/03-%s-2020/'%(str(date).zfill(2)))
+            equilibrium_status_ACC1 = disturbance_threshold(equilibrium_status_ACC1, disturbance_start_end)
+            equilibrium_status_ACC2 = disturbance_threshold(equilibrium_status_ACC2, disturbance_start_end)
 
             ACC1 = pd.concat([ACC1, equilibrium_status_ACC1])
             ACC2 = pd.concat([ACC2, equilibrium_status_ACC2])
-        filtered_ACC1 = exclude_outlier(ACC2[(ACC2[0] > 5) & (ACC2[0] < 70)].sort_values(by=[0]))
+        filtered_ACC1 = exclude_outlier(ACC1[(ACC1[0] > 5) & (ACC1[0] < 70)].sort_values(by=[0]))
         print('ACC1 all:',len(filtered_ACC1))
 
         filtered_ACC2 = exclude_outlier(ACC2[(ACC2[0] > 5) & (ACC2[0] < 70)].sort_values(by=[0]))

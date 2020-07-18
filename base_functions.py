@@ -354,8 +354,8 @@ def exclude_outlier(data, split = 5, exclude_threshold = 1):
         selected = data[(data[0] >= slots[i]) & (data[0] <= slots[i + 1])]
         y_mean = np.mean(selected[1])
         y_std = np.std(selected[1])
-        upper_bound = y_mean + y_std * exclude_threshold
-        lower_bound = y_mean - y_std * exclude_threshold
+        upper_bound = min(y_mean + y_std * exclude_threshold, 100)
+        lower_bound = max(y_mean - y_std * exclude_threshold, 5)
         selected = selected[(selected[1] >= lower_bound) & (selected[1] <= upper_bound)]
         included_data = pd.concat([included_data, selected])
     # included_data = data

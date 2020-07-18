@@ -259,8 +259,8 @@ def equilbirum_thresholds(old_equilibirum_sets, traj_df, TH_horizon, disturbance
             if variation[c] > TH[c]:  # spacing_threshold
                 equlibrium = False
         speed_diff = abs(traj_df[ACC_column[0]][i:i + TH_horizon] - traj_df[ACC_column[2]][i:i + TH_horizon])
-        # if (max(speed_diff) > 1) and equlibrium:  # speed_diff_threshold
-        #     equlibrium = False
+        if (max(speed_diff) > 1) and equlibrium:  # speed_diff_threshold
+            equlibrium = False
         if equlibrium:
             x = TH_horizon
             while equlibrium:
@@ -268,13 +268,13 @@ def equilbirum_thresholds(old_equilibirum_sets, traj_df, TH_horizon, disturbance
                     if max(traj_df[ACC_column[j]][i + x] - min(traj_df[ACC_column[j]][i:i + TH_horizon]),
                            max(traj_df[ACC_column[j]][i:i + TH_horizon]) - traj_df[ACC_column[j]][i + x]) > TH[j]:
                         equlibrium = False
-                # if abs(traj_df[0][i + x] - traj_df[2][i + x]) > 1:
-                #     equlibrium = False
+                if abs(traj_df[0][i + x] - traj_df[2][i + x]) > 1:
+                    equlibrium = False
                 x += 1
                 if i + x > traj_df.index[-1]:
                     break
             old_equilibirum_sets.append([np.mean(traj_df[c][i:i + x - 1])
-                                            for c in ACC_column])
+                                            for c in ACC_column] + [traj_df[0][i], traj_df[0][i + x - 1]])
             traj_df[:][i:i + x - 1].to_csv(os.getcwd() +
                                            '\\platooned_data\\%s\\equilibrium_traj\\%s_%s_equilibrium%s_%s_%s_%s.csv'
                                            % (to_save_folder,label, headway, date, int(traj_df[1][i]), int(traj_df[10][i]), traj_df[0][i]))
@@ -329,6 +329,7 @@ def read_disturbance(folder_name):
 
 def disturbance_threshold(equilibrium_status,disturbance_info):
     for disturbance in disturbance_info:
+
         equilibrium_status = equilibrium_status[:][(equilibrium_status[3] < disturbance[0] - 3) | \
                                                    (equilibrium_status[2] > disturbance[1] + 10)]
         # print(len(equilibrium_status[:][(equilibrium_status[3] < disturbance[0] - 5) | \
