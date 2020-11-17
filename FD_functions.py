@@ -46,23 +46,23 @@ def s_v_figure(speed1,spacing1,speed2,spacing2,label1,label2,folder_name,setting
     ax = fig.add_subplot(111)
     ax.set_position([0.2, 0.15, 0.75, 0.7])
     plt.scatter(speed1 * 0.44704, spacing1, s=24, c='r', marker='o', label=label1)
-    plt.scatter(speed2 * 0.44704, spacing2, s=24, c='b', marker='o', label=label2)
-    plt.legend()
     plt.title('s-v: headway setting' + setting)
     plt.xlabel('speed (m/s)')
     plt.ylabel('spacing (m)')
     plt.xlim([0, 35])
     plt.ylim([0, max(spacing2) * 1.5])
 
-    # weight = assign_weight(speed1, slots = [5,22,27,33,37,43,47,57,63,67,70])
     coef, intercept, p_value = linear_regression(speed1 * 0.44704, spacing1, weight=None)
     print(label1, 's-v coef:', coef, 'intercept:', intercept, 'p-value:', round(p_value, 3))
     plt.plot([0, 35], [0 * coef + intercept, 35 * coef + intercept], 'r--')
 
-    # weight = assign_weight(speed2, slots = [5,22,27,33,37,43,47,57,63,67,70])
+    plt.scatter(speed2 * 0.44704, spacing2, s=24, c='b', marker='o', label=label2)
     coef, intercept, p_value = linear_regression(speed2 * 0.44704, spacing2,weight=None)
     print(label2, 's-v coef:', coef, 'intercept:', intercept, 'p-value:', round(p_value, 3))
     plt.plot([0, 35], [0 * coef + intercept, 35 * coef + intercept], 'b--')
+
+    plt.legend()
+
     plt.savefig(os.path.dirname(__file__) + folder_name + 's-v headway setting' + setting +'.png')
 
 
@@ -121,7 +121,7 @@ def spacing_mean_in_each_speed_range(s_v, slots):
 
 
 
-def get_headway_period():
+def get_headway_period(mode=None):
     headway_1_period = {}
     headway_3_period = {}
     #Tesla 3/12
@@ -144,24 +144,26 @@ def get_headway_period():
     headway_3_period[15] = [((10, 15), (10, 50)), ((12, 9), (12, 40)), ((13, 45), (14, 40))]
 
     #Prius - Normal
-    headway_1_period[7] = [((10,5),(10,8,45)),((10,9,30),(10,10)),((10,11,45),(10,16,30)),((10,17),(10,17)),
-                           ((10,20,15),(10,24)),((10,26),(10,26)),
-                           ((10,29,30),(10,30,20)),((10,33),(10,34)),
-                           ((10,37,30),(10,38,15)),((10,39),(10,43)),((10,47,30),(10,50))]#normal
-    headway_3_period[7] = [((10, 55), (10, 57)), ((11, 3), (11, 3)), ((11, 7), (11, 9)), ((11, 12), (11, 12)),
-                           ((11, 18), (11, 19)), ((11, 23), (11, 24)),
-                           ((11, 29), (11, 32)), ((11, 38), (11, 41))]  # normal
-    headway_1_period[8] = [((13, 17), (13, 28)), ((13, 32), (13, 33, 45)), ((13, 34, 10), (13, 35, 10)),
-                           ((13, 37), (13, 38, 50)), ((13, 39, 10), (13, 39, 45)), ((13, 40), (13, 41)),
-                           ((16, 54), (17, 31))]  # normal
-    headway_3_period[8] = [((9, 54), (9, 55)), ((9, 58), (10, 0)), ((11, 23), (11, 40)), ((13, 5), (13, 16)),
-                           ((17, 32), (17, 35)),
-                           ((17, 45), (17, 47)), ((17, 50), (17, 53)), ((18, 2), (18, 4))]  # normal
+    if mode == 'normal':
+        headway_1_period[7] = [((10,5),(10,8,45)),((10,9,30),(10,10)),((10,11,45),(10,16,30)),((10,17),(10,17)),
+                               ((10,20,15),(10,24)),((10,26),(10,26)),
+                               ((10,29,30),(10,30,20)),((10,33),(10,34)),
+                               ((10,37,30),(10,38,15)),((10,39),(10,43)),((10,47,30),(10,50))]#normal
+        headway_3_period[7] = [((10, 55), (10, 57)), ((11, 3), (11, 3)), ((11, 7), (11, 9)), ((11, 12), (11, 12)),
+                               ((11, 18), (11, 19)), ((11, 23), (11, 24)),
+                               ((11, 29), (11, 32)), ((11, 38), (11, 41))]  # normal
+        headway_1_period[8] = [((13, 17), (13, 28)), ((13, 32), (13, 33, 45)), ((13, 34, 10), (13, 35, 10)),
+                               ((13, 37), (13, 38, 50)), ((13, 39, 10), (13, 39, 45)), ((13, 40), (13, 41)),
+                               ((16, 54), (17, 31))]  # normal
+        headway_3_period[8] = [((9, 54), (9, 55)), ((9, 58), (10, 0)), ((11, 23), (11, 40)), ((13, 5), (13, 16)),
+                               ((17, 32), (17, 35)),
+                               ((17, 45), (17, 47)), ((17, 50), (17, 53)), ((18, 2), (18, 4))]  # normal
     #Prius - Power
-    # headway_1_period[7] = [((12,0),(12,52))]#power
-    # headway_3_period[7] = [((12,53),(13,35))]#power
-    # headway_1_period[8] = [((13,42),(14,14)),((14,25),(14,59))]#power
-    # headway_3_period[8] = [((10,2),(11,22)),((14,15),(14,24))]#power
+    if mode == 'power':
+        headway_1_period[7] = [((12,0),(12,52))]#power
+        headway_3_period[7] = [((12,53),(13,35))]#power
+        headway_1_period[8] = [((13,42),(14,14)),((14,25),(14,59))]#power
+        headway_3_period[8] = [((10,2),(11,22)),((14,15),(14,24))]#power
 
 
     #Tesla 2/21
@@ -205,7 +207,7 @@ def draw_FD(ACC1, ACC2, setting, folder_name, label1 = 'ACC1', label2 = 'ACC2'):
     s_v_figure(speed1,spacing1,speed2,spacing2,label1,label2,folder_name,setting)
 
 
-def find_equilibrium(traj_dict, date, headway, disturbance_info = None):
+def find_equilibrium(traj_dict, date, headway, disturbance_info = None, spacing_upper_bound=100):
     TH = get_TH(date)
     equilibrium_status_ACC1 = []
     equilibrium_status_ACC2 = []
@@ -213,25 +215,37 @@ def find_equilibrium(traj_dict, date, headway, disturbance_info = None):
     ACC2_column = [3, 11, 2]
     TH_horizon = 100 #horizon - in frequency
     for traj_df in traj_dict:
+        if date == 7:
+            save_date = 8
+        elif date in [21,22]:
+            save_date = 23
+        else:
+            save_date = date
         traj_df = traj_df.reset_index()
         #ACC1
         equilibrium_status_ACC1 = equilbirum_thresholds(equilibrium_status_ACC1, traj_df, TH_horizon,
                                                         disturbance_info, ACC1_column, headway, date, 'ACC1', TH,
-                                                        to_save_folder = '03-08-2020')
+                                                        to_save_folder = '03-%s-2020'%(str(save_date).zfill(2)))
         #ACC2
         equilibrium_status_ACC2 = equilbirum_thresholds(equilibrium_status_ACC2, traj_df, TH_horizon,
                                                         disturbance_info, ACC2_column, headway, date, 'ACC2', TH,
-                                                        to_save_folder = '03-08-2020')
+                                                        to_save_folder = '03-%s-2020'%(str(save_date).zfill(2)))
     ACC1 = pd.DataFrame(data=equilibrium_status_ACC1)
     ACC2 = pd.DataFrame(data=equilibrium_status_ACC2)
-    try:
-        ACC1 = exclude_outlier(ACC1[(ACC1[0] > 20) & (ACC1[0] < 70)].sort_values(by=[0]))
-    except:
-        ACC1 = ACC1[(ACC1[0] > 20) & (ACC1[0] < 70)].sort_values(by=[0])
-    try:
-        ACC2 = exclude_outlier(ACC2[(ACC2[0] > 20) & (ACC2[0] < 70)].sort_values(by=[0]))
-    except:
-        ACC2 = ACC2[(ACC2[0] > 20) & (ACC2[0] < 70)].sort_values(by=[0])
+    if len(ACC1) > 0:
+        ACC1 = ACC1[(ACC1[0] > 20) & (ACC1[0] < 70) & (ACC1[1] < spacing_upper_bound)].sort_values(by=[0])
+    if len(ACC2) > 0:
+        ACC2 = ACC2[(ACC2[0] > 20) & (ACC2[0] < 70) & (ACC2[1] < spacing_upper_bound)].sort_values(by=[0])
+    # if len(ACC1) > 0:
+    #     try:
+    #         ACC1 = exclude_outlier(ACC1).sort_values(by=[0])
+    #     except:
+    #         pass
+    # if len(ACC2) > 0:
+    #     try:
+    #         ACC2 = exclude_outlier(ACC2).sort_values(by=[0])
+    #     except:
+    #         pass
     print('ACC1', len(ACC1))
     print('ACC2', len(ACC2))
     return ACC1, ACC2
@@ -243,15 +257,10 @@ def equilbirum_thresholds(old_equilibirum_sets, traj_df, TH_horizon, disturbance
         if i < equilibrium_end_point:
             continue
 
-        # disturbance threshold
-        # if disturbance_info is not None:
-        #     in_disturbance = False
-        #     for disturbance in disturbance_info:
-        #         if (traj_df[0][i] > disturbance[0] - 5) and (traj_df[0][i] < disturbance[1] + 10):
-        #             in_disturbance = True
-        #             break
-        #     if in_disturbance is True:
-        #         continue
+        # naive threshold for to keep away from disturbances
+        if i > 100:
+            if max([max(traj_df[c][i - 100:i]) - min(traj_df[c][i - 100:i]) for c in ACC_column]) > 3:
+                continue
 
         variation = [max(traj_df[c][i:i + TH_horizon]) - min(traj_df[c][i:i + TH_horizon]) for c in ACC_column]
         equlibrium = True
@@ -262,58 +271,82 @@ def equilbirum_thresholds(old_equilibirum_sets, traj_df, TH_horizon, disturbance
         if (max(speed_diff) > 1) and equlibrium:  # speed_diff_threshold
             equlibrium = False
         if equlibrium:
+            # if traj_df[0][i]<411200:
+            #     continue
             x = TH_horizon
             while equlibrium:
-                for j in [1]:
+                for j in [1]: # spacing_threshold
                     if max(traj_df[ACC_column[j]][i + x] - min(traj_df[ACC_column[j]][i:i + TH_horizon]),
                            max(traj_df[ACC_column[j]][i:i + TH_horizon]) - traj_df[ACC_column[j]][i + x]) > TH[j]:
                         equlibrium = False
-                if abs(traj_df[0][i + x] - traj_df[2][i + x]) > 1:
+                if abs(traj_df[ACC_column[0]][i + x] - traj_df[ACC_column[2]][i + x]) > 1: # speed_diff_threshold
                     equlibrium = False
                 x += 1
                 if i + x > traj_df.index[-1]:
                     break
+
             old_equilibirum_sets.append([np.mean(traj_df[c][i:i + x - 1])
                                             for c in ACC_column] + [traj_df[0][i], traj_df[0][i + x - 1]])
-            traj_df[:][i:i + x - 1].to_csv(os.getcwd() +
-                                           '\\platooned_data\\%s\\equilibrium_traj\\%s_%s_equilibrium%s_%s_%s_%s.csv'
-                                           % (to_save_folder,label, headway, date, int(traj_df[1][i]), int(traj_df[10][i]), traj_df[0][i]))
+            # traj_df[:][i:i + x - 1].to_csv(os.getcwd() +
+            #                                '\\platooned_data\\%s\\equilibrium_traj\\%s_%s_equilibrium%s_%s_%s_%s.csv'
+            #                                % (to_save_folder,label, headway, date, int(traj_df[1][i]), int(traj_df[10][i]), traj_df[0][i]))
             equilibrium_end_point = i + x
+            # print(x)
     new_equilbirum_sets = old_equilibirum_sets
     return new_equilbirum_sets
 
 
-def read_data_from_equlirbium_csv(folder_name, headway_period):
+def read_data_from_equlirbium_csv(folder_name, headway, exclude_outliers = True,
+                                  min_speed=20, max_speed=70,spacing_bound=100):
     equilibrium_status_ACC1 = []
     equilibrium_status_ACC2 = []
-    ACC1_column = ['1', '10']
-    ACC2_column = ['2', '11']
+    ACC1_column = ['1', '10', '2']
+    ACC2_column = ['2', '11', '3']
     for csv_file in os.listdir(os.path.dirname(__file__) + folder_name):
         if 'equilibrium' not in csv_file:
             continue
-        traj_df = pd.read_csv(os.path.dirname(__file__)+folder_name+'/' + csv_file)
-        for period in headway_period:
-            start = period[0]
-            end = period[1]
-            traj_df_split = traj_df[(traj_df['15']>=hour_min_sec_to_min(start))
-                                    & (traj_df['15']<=hour_min_sec_to_min(end))]
-            if len(traj_df_split) == 0:
-                continue
-            if 'ACC1' in csv_file:
-                equilibrium_status_ACC1.append([np.nanmean(traj_df_split[c]) for c in ACC1_column] +
-                                               [traj_df_split.iloc[0, 2],traj_df_split.iloc[-1, 2]])
-            if 'ACC2' in csv_file:
-                equilibrium_status_ACC2.append([np.nanmean(traj_df_split[c]) for c in ACC2_column] +
-                                               [traj_df_split.iloc[0, 2],traj_df_split.iloc[-1, 2]])
+        if csv_file[5] != headway:
+            continue
+        traj_df_split = pd.read_csv(os.path.dirname(__file__)+folder_name+'/' + csv_file)
+        # for period in headway_period:
+        #     start = period[0]
+        #     end = period[1]
+        #     traj_df_split = traj_df[(traj_df['15']>=hour_min_sec_to_min(start))
+        #                             & (traj_df['15']<=hour_min_sec_to_min(end))]
+        #     if len(traj_df_split) == 0:
+        #         continue
+            # print(len(traj_df_split))
+
+
+
+        if 'ACC1' in csv_file:
+            equilibrium_status_ACC1.append([np.nanmean(traj_df_split[c]) for c in ACC1_column] +
+                                           [traj_df_split.iloc[0, 2],traj_df_split.iloc[-1, 2]])
+        if 'ACC2' in csv_file:
+            equilibrium_status_ACC2.append([np.nanmean(traj_df_split[c]) for c in ACC2_column] +
+                                           [traj_df_split.iloc[0, 2],traj_df_split.iloc[-1, 2]])
     ACC1 = pd.DataFrame(data=equilibrium_status_ACC1)
     ACC2 = pd.DataFrame(data=equilibrium_status_ACC2)
-    filtered_ACC1 = exclude_outlier(ACC1[(ACC1[0] > 20) & (ACC1[0] < 70)].sort_values(by=[0]))
-    print('ACC1 all:', len(filtered_ACC1))
+    if len(ACC1) > 0:
+        ACC1 = ACC1[(ACC1[0] > min_speed) & (ACC1[0] < max_speed) & (ACC1[1] < spacing_bound)].sort_values(by=[0])
+    if len(ACC2) > 0:
+        ACC2 = ACC2[(ACC2[0] > min_speed) & (ACC2[0] < max_speed) & (ACC2[1] < spacing_bound)].sort_values(by=[0])
+    if exclude_outliers:
+        if len(ACC1) > 0:
+            try:
+                ACC1 = exclude_outlier(ACC1).sort_values(by=[0])
+            except:
+                pass
+        if len(ACC2) > 0:
+            try:
+                ACC2 = exclude_outlier(ACC2).sort_values(by=[0])
+            except:
+                pass
 
-    filtered_ACC2 = exclude_outlier(ACC2[(ACC2[0] > 20) & (ACC2[0] < 70)].sort_values(by=[0]))
-    print('ACC2 all:', len(filtered_ACC2))
+    print('ACC1 all:', len(ACC1))
+    print('ACC2 all:', len(ACC2))
 
-    return filtered_ACC1, filtered_ACC2
+    return ACC1, ACC2
 
 def read_disturbance(folder_name):
     start_end_set = []
@@ -327,11 +360,37 @@ def read_disturbance(folder_name):
         start_end_set.append((time_reference + d_start, time_reference + a_end))
     return start_end_set
 
-def disturbance_threshold(equilibrium_status,disturbance_info):
+def disturbance_threshold(equilibrium_status,disturbance_info, left_bound = 3, right_bound = 10):
     for disturbance in disturbance_info:
+        i_bad = []
+        for i in range(len(equilibrium_status)):
 
-        equilibrium_status = equilibrium_status[:][(equilibrium_status[3] < disturbance[0] - 3) | \
-                                                   (equilibrium_status[2] > disturbance[1] + 10)]
-        # print(len(equilibrium_status[:][(equilibrium_status[3] < disturbance[0] - 5) | \
-        #                                            (equilibrium_status[2] > disturbance[1] + 10)]))
+            if equilibrium_status.iloc[i][4] < disturbance[0] - left_bound:
+                continue
+            elif equilibrium_status.iloc[i][3] < disturbance[0] - left_bound:
+                equilibrium_status.iloc[i][4] = min(disturbance[0] - left_bound, equilibrium_status.iloc[i][4])
+
+
+            if equilibrium_status.iloc[i][3] > disturbance[1] + right_bound:
+                continue
+            elif equilibrium_status.iloc[i][4] > disturbance[1] + right_bound:
+                equilibrium_status.iloc[i][3] = max(disturbance[1] + right_bound, equilibrium_status.iloc[i][3])
+
+
+            if (equilibrium_status.iloc[i][4] - equilibrium_status.iloc[i][3]) < 10:
+                i_bad.append(i)
+                continue
+            if (equilibrium_status.iloc[i][3] >= disturbance[0] - left_bound) and \
+                (equilibrium_status.iloc[i][4] <= disturbance[1] + right_bound):
+                i_bad.append(i)
+
+        #
+        # bad_df = equilibrium_status.index.isin(i_bad)
+        # equilibrium_status = equilibrium_status[~bad_df]
+        for i in reversed(i_bad):
+            equilibrium_status = pd.concat([equilibrium_status.iloc[:i], equilibrium_status.iloc[i + 1:]])
+
+        # equilibrium_status = equilibrium_status[:][(equilibrium_status[4] < disturbance[0] - left_bound) | \
+        #                                            (equilibrium_status[3] > disturbance[1] + right_bound)]
+
     return equilibrium_status

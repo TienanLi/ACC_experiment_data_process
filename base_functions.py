@@ -74,15 +74,35 @@ def cal_ita(t,d,t_f,d_f,sim_freq,w,k):
             r=range(int(max(0, (w_function(t_f[i]-t[0], w, 1, k)-3)  / sim_freq)),
                       int(min(len(t_f), (w_function(t_f[i]-t[0], w, 1, k)+3) / sim_freq)))
             y_list=[abs(-w*(t[j]-t_f[i])+d_f[i]-d[j]) for j in r]
-            leader_t = (y_list.index(min(y_list)) * sim_freq + t[r[0]])
+            closest_j = y_list.index(min(y_list))
+            leader_t = closest_j * sim_freq + t[r[0]]
+
+            closest_j_on_t = closest_j + r[0]
+            closest_y_diff = (-w*(t[closest_j_on_t]-t_f[i])+d_f[i])-d[closest_j_on_t]
+            if closest_y_diff >= 0:
+                if closest_j_on_t < len(d):
+                    v = (d[closest_j_on_t + 1] - d[closest_j_on_t]) / 0.1
+                else:
+                    v = (d[closest_j_on_t] - d[closest_j_on_t - 1]) / 0.1
+
+                interplot = closest_y_diff / (w + v)
+                leader_t = leader_t + interplot
+            if closest_y_diff < 0:
+                if closest_j_on_t == 0:
+                    v = (d[closest_j_on_t + 1] - d[closest_j_on_t]) / 0.1
+                else:
+                    v = (d[closest_j_on_t] - d[closest_j_on_t - 1]) / 0.1
+                interplot = - closest_y_diff / (w + v)
+                leader_t = leader_t - interplot
+
             #use t ratio
             tau_i=t_f[i]-leader_t
             eta=tau_i / ((1 / k / w))
             # eta = tau_i
 
             #use d ratio
-            d_i = d[find_nearest_index(t,leader_t)] - d_f[i]
-            eta = d_i / ((1 / k ))
+            # d_i = d[find_nearest_index(t,leader_t)] - d_f[i]
+            # eta = d_i / ((1 / k ))
 
             if eta>5 or eta<0:
                 eta=np.nan
@@ -123,7 +143,7 @@ def moving_average(a, n) :
 
 def find_nearest_index(time_serires,point):
     series_a=[abs(ts-point) for ts in time_serires]
-    return series_a.index(min(series_a))
+    return series_a.index(np.nanmin(series_a))
 
 def fill_front_space_missing_signal(serie,expected_frequency,high_threshold,unnormal=False,unnormal_down=False):
     missing_index=[]
@@ -337,12 +357,19 @@ def WT_MEXH(y, frequency_bound = 32, prominence = 1):
     total_energy = h / frequency_bound
     peak_wt = find_peaks(total_energy, prominence=prominence)[0]  # use prominence or width
 
+    # fig = plt.figure()
+    # ax = fig.add_subplot(211)
+    # plt.plot(y)
+    # ax = fig.add_subplot(212)
+    # plt.plot(total_energy)
+    # plt.show()
+
     return peak_wt, total_energy
 
 def time_of_week_to_hms(time_point, time_zone):
     hour = np.floor(time_point / (60 * 60) % 24) + time_zone
-    minute = np.floor(time_point / (60 * 60) % 1 * 60)
-    sec = np.floor(time_point / (60 * 60) % 1 * 60 % 1 * 60)
+    minute = np.floor(round(time_point / (60 * 60) % 1 * 60)) #use round to avoid numerical error from the division
+    sec = np.floor(round(time_point / (60 * 60) % 1 * 60) % 1 * 60)
     return hour, minute, sec
 
 def exclude_outlier(data, split = 5, exclude_threshold = 1):
