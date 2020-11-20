@@ -132,11 +132,9 @@ def main_single_day(folder_name, date):
             read_data_from_equlirbium_csv('/platooned_data/03-%s-2020/equilibrium_traj/' % (str(date).zfill(2)),
                                           headway, exclude_outliers = False)
 
-
         disturbance_start_end = read_disturbance(folder_name)
         equilibrium_status_ACC1 = disturbance_threshold(equilibrium_status_ACC1, disturbance_start_end)
         equilibrium_status_ACC2 = disturbance_threshold(equilibrium_status_ACC2, disturbance_start_end)
-
 
         ACC_headway[headway] = pd.concat([equilibrium_status_ACC1, equilibrium_status_ACC2])
         draw_FD(equilibrium_status_ACC1, equilibrium_status_ACC2, headway, folder_name)

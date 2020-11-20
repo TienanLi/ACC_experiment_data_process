@@ -269,8 +269,8 @@ def ACC_in_use(speed_time_series,speed,LEAD_INFO_time_series,front_space,relativ
     return traj_info
 
 def linear_regression(X, Y, weight = None):
-    X=np.array(X).reshape(len(X),1)
-    Y=np.array(Y).reshape(len(Y),1)
+    X=np.array(X).reshape(len(X),1).astype(np.float32)
+    Y=np.array(Y).reshape(len(Y),1).astype(np.float32)
     print('size:',len(X))
     regr = linear_model.LinearRegression()
     regr.fit(X, Y, sample_weight = weight)

@@ -316,9 +316,6 @@ def read_data_from_equlirbium_csv(folder_name, headway, exclude_outliers = True,
         #     if len(traj_df_split) == 0:
         #         continue
             # print(len(traj_df_split))
-
-
-
         if 'ACC1' in csv_file:
             equilibrium_status_ACC1.append([np.nanmean(traj_df_split[c]) for c in ACC1_column] +
                                            [traj_df_split.iloc[0, 2],traj_df_split.iloc[-1, 2]])
