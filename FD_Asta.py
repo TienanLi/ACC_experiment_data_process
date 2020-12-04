@@ -10,6 +10,9 @@ def vehicles_column():
     # self_speed, spacing, lead_speed， elevation
     return [[8, 36, 1, 7], [15, 37, 8, 14], [22, 38, 15, 21], [29, 39, 22, 28]]
 
+def veh_length():
+    #2018 audi A8, 2019 Tesla Model 3, 2018 BMW X5, 2019 Mercedes A Class, 2018 Audi A6
+    return [5.27, 4.69, 4.89, 4.55, 4.93] #in m
 
 def find_equilibrium(traj_dict):
     TH = [0.44704, 1, 0.44704] #speed spacing
@@ -92,11 +95,15 @@ def read_data_from_equlirbium_csv(folder_name, veh, min_speed=5, max_speed=30):
             continue
         traj_df = pd.read_csv(os.path.dirname(__file__)+folder_name+'/' + csv_file)
 
+        elevation = np.array(traj_df[speed_spacing_column[-1]])
+        speed = np.array(traj_df[speed_spacing_column[0]])
+        slope = np.mean((elevation[1:] - elevation[:-1]) / (speed[:-1] * 0.1)) #in the unit of vertical/horizontal
+
         experiment[setSetting].append([np.mean(traj_df[c])
-                                        for c in speed_spacing_column] +
+                                        for c in speed_spacing_column[:-1]] +
                                        [traj_df['0'][0],
                                         traj_df['0'][len(traj_df)-1],
-                                        experimentSet])
+                                        experimentSet, slope])
     equil_DF = {k: pd.DataFrame(data=v).sort_values(by=[0]) for k, v in experiment.items()}
     equil_DF ={k: v[(v[0] > min_speed) & (v[0] < max_speed)] for k, v in equil_DF.items()}
     return equil_DF
@@ -153,6 +160,8 @@ def draw_FD(equil_DF, setting, veh):
 def equilibrium_analysis():
     for veh in range(2, 6):
         equil_DF = read_data_from_equlirbium_csv('/platooned_data/Asta_data/equilibrium_traj/', veh)
+        for s in equil_DF:
+            equil_DF[s][1] += veh_length()[veh - 2] # from inter-vehicle spacing to bumper-bumper spacing
         fo = open(os.path.dirname(__file__) + '/platooned_data/Asta_data/equilibrium_traj/FD_data_Asta_veh%s'%veh, 'wb')
         pickle.dump(equil_DF, fo)
         fo.close()
@@ -160,8 +169,6 @@ def equilibrium_analysis():
             if k == 'max':
                 continue
             draw_FD(v, k, veh)
-
-
 
 def main():
     # traj_dict = read_data_from_csv('/platooned_data/Asta_data/')
