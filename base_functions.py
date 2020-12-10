@@ -137,7 +137,7 @@ def cal_ita_dynamic_wave_fix_tau0(t,d,t_f,d_f,tau0,stand_still_spacing):
 def moving_average(a, n) :
     n=int(n)
     avg_list=pd.Series(a).rolling(n, min_periods=int(n / 5)).mean().tolist()
-    avg_list=avg_list[int(n/2):]+[np.nan for i in range(int(n))]
+    avg_list=avg_list[int(n/2):]+[np.mean(a[i:]) for i in range(-n, 0)]
     avg_list=avg_list[:len(a)]
     return avg_list
 
@@ -455,3 +455,128 @@ def min_speed_fine_measurment_2(oscillations_LV, oscillations_FV, v_LV, time_axi
     oscillations_LV[0][1] = LV_min
 
     return oscillations_LV
+
+
+def derivative(X, frequency = 0.1): #n to n-1 dimension
+    X = np.array(X)
+    diff = X[1:] - X[:-1]
+    derivative = diff / frequency
+    return derivative
+
+def denoise_speed(X, derThreshold = (-5, 5)):
+    X = np.array(X)
+    X = X * 0.44704 #from mph to m/s
+    Xprime = derivative(X)
+    noises = Xprime[(Xprime > derThreshold[1]) | (Xprime < derThreshold[0])]
+    while len(noises) > 0:
+        for i in range(len(Xprime) - 1):
+            if (Xprime[i] > derThreshold[1]) or (Xprime[i] < derThreshold[0]):
+                X[i + 1] = (X[i] + X[i + 2]) / 2
+        if (Xprime[-1] > derThreshold[1]) or (Xprime[-1] < derThreshold[0]):
+            X[-1] = 2 * X[-2] - X[-3]
+        Xprime = derivative(X)
+        noises = Xprime[(Xprime > derThreshold[1]) | (Xprime < derThreshold[0])]
+    return X / 0.44704 #from m/s back to mph
+
+def denoise_loc(loc, speedRef, errRange = 3):
+    resolution = 0.1
+    speedRef = np.array(speedRef)
+    speedRef = speedRef * 0.44704 #from mph to m/s
+    locPrime = derivative(loc, frequency=resolution)
+    noises = 1
+    iteration = 0
+    while noises > 0:
+        iteration += 1
+        noises = 0
+        i = 0
+        while i < len(locPrime) - 1:
+            if (locPrime[i] > speedRef[i] + errRange) or (locPrime[i] < speedRef[i] - errRange):
+                iStart, iEnd = i, i
+                if locPrime[i] > speedRef[i] + errRange:
+                    sign = 1
+                if locPrime[i] < speedRef[i] - errRange:
+                    sign = -1
+                noises += 1
+                while i < len(locPrime) - 1:
+                    i += 1
+                    if sign == 1:
+                        if locPrime[i] < speedRef[i] - errRange:
+                            iEnd = i
+                    if sign == -1:
+                        if locPrime[i] > speedRef[i] + errRange:
+                            iEnd = i
+
+                    if iEnd > iStart:
+                        if iStart > 0:
+                            slope = (loc[iEnd + 1] - loc[iStart]) / (iEnd - iStart + 1)
+                            for j in range(iStart + 1, iEnd + 1):
+                                loc[j] = loc[j - 1] + slope
+                        else:
+                            for j in range(iEnd, iStart - 1, -1):
+                                loc[j] = loc[j + 1] - speedRef[j] * resolution
+                        break
+                    if i > iStart + 10:
+                        break
+                if iStart == iEnd:
+                    if iStart == 0:
+                        loc[iStart] = 2 * loc[iStart + 1] - loc[iStart + 2]
+                    else:
+                        loc[iStart + 1] = (loc[iStart] + loc[iStart + 2]) / 2
+            i += 1
+
+        if (locPrime[-1] > speedRef[-1] + errRange) or (locPrime[-1] < speedRef[-1] - errRange):
+            loc[-1] = 2 * loc[-2] - loc[-3]
+            noises += 1
+        locPrime = derivative(loc, frequency=resolution)
+        if iteration > 10:
+            break
+    return loc
+
+# def denoise_loc(loc, derThreshold = (-5, 5)):
+#     loc = np.array(loc)
+#     speedPrime = derivative(derivative(loc))
+#     noises = 1
+#     iteration = 0
+#     while noises > 0:
+#         iteration += 1
+#         noises = 0
+#         i = 0
+#         while i < len(speedPrime):
+#             if (speedPrime[i] > derThreshold[1]) or (speedPrime[i] < derThreshold[0]):
+#                 iStart, iEnd = i, i
+#                 if speedPrime[i] > derThreshold[1]:
+#                     sign = 1
+#                 if speedPrime[i] < derThreshold[0]:
+#                     sign = -1
+#                 noises += 1
+#                 while i < len(speedPrime) - 1:
+#                     i += 1
+#                     if sign == 1:
+#                         if speedPrime[i] < derThreshold[0]:
+#                             iEnd = i
+#                     if sign == -1:
+#                         if speedPrime[i] > derThreshold[1]:
+#                             iEnd = i
+#
+#                     if iEnd > iStart:
+#                         if iStart > 0:
+#                             slope = (loc[iEnd + 1] - loc[iStart]) / (iEnd - iStart + 1)
+#                             for j in range(iStart + 1, iEnd + 1):
+#                                 loc[j] = loc[j - 1] + slope
+#                         else:
+#                             for j in range(iEnd, iStart - 1, -1):
+#                                 loc[j] = 2 * loc[j + 1] - loc[j + 2]
+#                         break
+#                     if i > iStart + 10:
+#                         break
+#                 if iStart == iEnd:
+#                     if iStart == 0:
+#                         loc[iStart] = 2 * loc[iStart + 1] - loc[iStart + 2]
+#                     else:
+#                         loc[iStart + 1] = (loc[iStart] + loc[iStart + 2]) / 2
+#             i += 1
+#
+#         speedPrime = derivative(derivative(loc))
+#         if iteration > 10:
+#             break
+#     return loc

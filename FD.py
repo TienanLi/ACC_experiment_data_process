@@ -153,7 +153,6 @@ def main_single_day(folder_name, date):
 if __name__=='__main__':
     experiment_date = [12]#remember to change equlibrium save path at find_equlibrium function
 
-
     if (21 in experiment_date) and (experiment_date == [21,22,23]):
         main_multi_day_tesla_x(experiment_date)
         quit()

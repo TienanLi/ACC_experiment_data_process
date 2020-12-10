@@ -12,7 +12,8 @@ from matplotlib import rc
 from math import ceil, floor
 from Analyze_functions_multiple_veh import overlap_period
 from base_functions import find_nearest_index, moving_average, get_a_part_before_a_point, \
-    cal_ita, cal_ita_dynamic_wave_fix_tau0, min_speed_fine_measurment, min_speed_fine_measurment_2
+    cal_ita, cal_ita_dynamic_wave_fix_tau0, min_speed_fine_measurment, min_speed_fine_measurment_2, \
+    denoise_speed, denoise_loc
 from oscillation_functions import oscillation_statistics, save_oscillations
 from matplotlib.collections import LineCollection
 
@@ -339,20 +340,21 @@ def get_tau0_congested_s(date, headway, engine_mode):
 
     return tau0, congested_s
 
-def speed_visulization_2_subplot(traj_dict, folder_name, first_fig, MA_window = 2, extended_period = 50, draw_veh=3):
-    #'oblique_traj', 'traj', 'spacing', 'eta'
+def speed_visulization_2_subplot(traj_dict, folder_name, first_fig, SAVE_INFO = False,
+                                 denoise = True, MA_window = 1, extended_period = 65, draw_veh = 3):
+    #'oblique_traj', 'traj', 'spacing', 'eta'， 'elevation'
     HIGH_PLOT = False
-
-    X_LIMIT = [-18, 15]
+    SPEED_SHIFT = False
+    X_LIMIT = [-17.5, 15]
     traj_color = ['green', 'red', 'blue']
-    traj_label = ['Leader-HDV', 'ACC1', 'ACC2']
+    # traj_label = ['Leader-HDV', 'ACC1', 'ACC2']
+    traj_label = ['Leader', 'Follower']
 
-
+    oscillation_info = []
+    complete_oscillation_info = []
     for traj in traj_dict:
 
-        if MA_window > 0:
-            for i in range(1, len(traj)):
-                traj[i] = moving_average(traj[i], MA_window * data_frequency)
+
 
         oscillation_set = read_oscillation_time(folder_name)
         divided_traj, selected_oscillation_set = traj_by_oscillation_manual(traj, oscillation_set)
@@ -360,17 +362,17 @@ def speed_visulization_2_subplot(traj_dict, folder_name, first_fig, MA_window = 
         overall_traj = traj.copy()
         for traj in divided_traj:
             # which figure to produce
-            # DRAW = False
-            # if selected_oscillation_set[traj_num][-1] in [52]:
-            # #     if selected_oscillation_set[traj_num][2] == '1':
-            # #         if selected_oscillation_set[traj_num][4] == 'mild':
-            # # if selected_oscillation_set[traj_num][6].replace('\n','') == 'long':
-            # #     #             if selected_oscillation_set[traj_num][5] == 'mild':
-            #     DRAW = True
-            # if not DRAW:
-            #     traj_num += 1
-            #     continue
-
+            DRAW = False
+            SAVE_INFO = False
+            if selected_oscillation_set[traj_num][-1] in [87]:
+            #     if selected_oscillation_set[traj_num][2] == '1':
+            #         if selected_oscillation_set[traj_num][4] == 'mild':
+            # if selected_oscillation_set[traj_num][6].replace('\n','') == 'long':
+            #     #             if selected_oscillation_set[traj_num][5] == 'mild':
+                DRAW = True
+            if not DRAW:
+                traj_num += 1
+                continue
 
 
             oscillations_LV, WT_frequncy = oscillation_statistics(traj[0], traj[1], data_frequency, fluent=True)
@@ -383,13 +385,27 @@ def speed_visulization_2_subplot(traj_dict, folder_name, first_fig, MA_window = 
 
             extended_traj, non_used_value = traj_by_oscillation_manual(overall_traj, [(mid_point - extended_period,
                                                                                        mid_point + extended_period)])
+            extended_traj = extended_traj[0]
+
+
+            #speed is in mph
+            if denoise:
+                for i in range(1, 4): # speed
+                    extended_traj[i] = denoise_speed(extended_traj[i])
+                    plt.plot(extended_traj[i])
+                for i in range(4, 7): #location
+                    extended_traj[i] = denoise_loc(extended_traj[i])
+
+            if MA_window > 0:
+                for i in range(1, len(traj)):
+                    extended_traj[i] = moving_average(extended_traj[i], MA_window * data_frequency)
+
 
             if selected_oscillation_set[traj_num][6].replace('\n', '') == 'long':
                 cruise = True
             else:
                 cruise = False
 
-            extended_traj = extended_traj[0]
             traj[0] = [tt - mid_point for tt in traj[0]]
             extended_traj[0] = [tt - mid_point for tt in extended_traj[0]]
 
@@ -464,7 +480,39 @@ def speed_visulization_2_subplot(traj_dict, folder_name, first_fig, MA_window = 
                                                                extended_traj[1],
                                                                extended_traj[0])
 
+            if SAVE_INFO:
+                stablization_before_LV = get_a_part_before_a_point(extended_traj[1], extended_traj[0],
+                                                                   oscillations_LV[0][2], 30)
+                stablization_before_FV = get_a_part_before_a_point(extended_traj[2], extended_traj[0],
+                                                                   oscillations_LV[0][2], 30)
 
+                stablization_before_spacing_FV = get_a_part_before_a_point(spacing_FV, extended_traj[0],
+                                                                           oscillations_LV[0][2], 30)
+
+                speed_diff_FV = [extended_traj[1][i] - extended_traj[2][i] for i in range(len(extended_traj[1]))]
+                speed_diff_TV = [extended_traj[2][i] - extended_traj[3][i] for i in range(len(extended_traj[2]))]
+                spacing_from_speed_FV = [sum(speed_diff_FV[:i + 1]) * 0.44704 / 10 for i in range(len(speed_diff_FV))]
+                spacing_from_speed_TV = [sum(speed_diff_TV[:i + 1]) * 0.44704 / 10 for i in range(len(speed_diff_TV))]
+
+                oscillation_info.append((oscillations_LV[0], oscillations_FV[0],
+                                         oscillations_TV[0], selected_oscillation_set[traj_num][2:] + [speed_group],
+                                         stablization_before_LV, stablization_before_FV, stablization_before_spacing_FV,
+                                         spacing_FV, spacing_from_speed_FV, extended_traj[1]))
+
+                # full_speed, location
+                LV_complete = (extended_traj[1])
+                # full_speed, full_spacing, full_spacing_from_v, location
+                FV_complete = (extended_traj[2], spacing_FV, spacing_from_speed_FV)
+                # full_speed, full_spacing, full_spacing_from_v, location
+                TV_complete = (extended_traj[3], spacing_TV, spacing_from_speed_TV)
+
+                LOCATION_INFO = (extended_traj[4], extended_traj[5], extended_traj[6])
+
+                complete_oscillation_info.append((oscillations_LV[0], oscillations_FV[0], oscillations_TV[0],
+                                                  selected_oscillation_set[traj_num][2:] + [speed_group],
+                                                  LV_complete, FV_complete, TV_complete, extended_traj[0],
+                                                  LOCATION_INFO,
+                                                  mid_point))
 
 
 
@@ -489,9 +537,15 @@ def speed_visulization_2_subplot(traj_dict, folder_name, first_fig, MA_window = 
 
             if first_fig == 'spacing':
                 plt.plot(extended_traj[0], spacing_FV,
-                         'r', label='spacing_veh1-2', linewidth=2)
-
+                         'k', label='spacing_veh1-2', linewidth=2)
                 plt.ylabel('spacing (m)', fontsize=label_size)
+                # plt.ylim([20, 45])
+
+            if first_fig == 'elevation':
+                plt.plot(extended_traj[0], extended_traj[7],
+                         'k', linewidth=2)
+                plt.ylabel('elevation (m)', fontsize=label_size)
+                # print(round(100*abs((max(extended_traj[7]) - min(extended_traj[7]))/(d_HV[np.argmax(extended_traj[7])]-d_HV[np.argmin(extended_traj[7])])),1))
 
             if first_fig in ['oblique_traj', 'traj']:
 
@@ -654,6 +708,7 @@ def speed_visulization_2_subplot(traj_dict, folder_name, first_fig, MA_window = 
                 plt.ylabel('$\\eta$', fontsize=label_size)
                 plt.xlim(X_LIMIT)
                 plt.grid(True)
+
             ax = fig.add_subplot(212)
             if HIGH_PLOT:
                 ax.set_position([0.15, 0.1, 0.8, 0.25])
@@ -661,7 +716,7 @@ def speed_visulization_2_subplot(traj_dict, folder_name, first_fig, MA_window = 
                 ax.set_position([0.1, 0.1, 0.87, 0.35])
 
             for i in range(1, draw_veh + 1):
-                if i < draw_veh:
+                if (i < draw_veh) and SPEED_SHIFT:
                     ax.plot([tt + tau0 for tt in extended_traj[0]], extended_traj[i], c=traj_color[i - 1],
                             linestyle='--',linewidth=2
                             ,label=traj_label[i - 1]+' (shifted by $\\tau_0$)'
@@ -724,163 +779,19 @@ def speed_visulization_2_subplot(traj_dict, folder_name, first_fig, MA_window = 
 
             traj_num += 1
 
-
-def save_info(traj_dict, folder_name, MA_window = 2, extended_period = 50, overall=False, draw_veh=3):
-    # save_continuous_CF_traj(traj_dict, oscillation_set, folder_name)
-
-    oscillation_info = []
-    complete_oscillation_info = []
-    for traj in traj_dict:
-        if MA_window > 0:
-            for i in range(1, len(traj)):
-                traj[i] = moving_average(traj[i], MA_window * data_frequency)
-        if overall == True:
-            v_diff = [traj[1][i] - traj[2][i] for i in range(len(traj[0])) if traj[2][i] > 5]
-            d_diff = [traj[4][i] - traj[5][i] for i in range(len(traj[0])) if traj[2][i] > 5]
-            e_diff = [traj[7][i] - traj[8][i] for i in range(len(traj[0])) if traj[2][i] > 5]
-            fig = plt.figure(figsize=(7, 4), dpi=100)
-            plt.hist(v_diff, bins = np.arange(-1,1.1,.05), weights=np.ones(len(v_diff)) / len(v_diff))
-            plt.gca().yaxis.set_major_formatter(PercentFormatter(1))
-            plt.title('speed error (mph)')
-            plt.savefig('v_diff.png')
-            plt.close()
-            fig = plt.figure(figsize=(7, 4), dpi=100)
-            plt.hist(d_diff, bins = np.arange(0, 8, .5), weights=np.ones(len(d_diff)) / len(d_diff))
-            plt.gca().yaxis.set_major_formatter(PercentFormatter(1))
-            plt.title('location error (m)')
-            plt.savefig('d_diff.png')
-            plt.close()
-            fig = plt.figure(figsize=(7, 4), dpi=100)
-            plt.hist(e_diff, weights=np.ones(len(e_diff)) / len(e_diff))
-            plt.gca().yaxis.set_major_formatter(PercentFormatter(1))
-            plt.title('elevation error (m)')
-            plt.savefig('e_diff.png')
-            plt.close()
-
-            Time_range = np.arange(ceil(min(traj[0]) / 60) * 60, max(traj[0]), 30)
-            fig = plt.figure(figsize=(7, 4), dpi=100)
-            ax = fig.add_subplot(111)
-            ax.set_position([0.08, 0.2, 0.82, 0.7])
-            plt.plot(traj[0], [traj[1][i] - traj[2][i] for i in range(len(traj[0]))], label='speed diff (mph)')
-            plt.plot(traj[0], [traj[4][i] - traj[5][i] for i in range(len(traj[0]))], label='location diff (m)')
-            plt.plot(traj[0], [traj[7][i] - traj[8][i] for i in range(len(traj[0]))], label='elevation diff (m)')
-            plt.legend()
-            plt.xticks(Time_range)
-            plt.xlabel('time (s)', fontsize=20)
-            plt.ylabel('speed(mph)', fontsize=20)
-            plt.grid(True)
-            plt.show()
-
-            continue
-        oscillation_set = read_oscillation_time(folder_name)
-        divided_traj, selected_oscillation_set = traj_by_oscillation_manual(traj, oscillation_set)
-        traj_num = 0
-        overall_traj = traj.copy()
-        for traj in divided_traj:
-            oscillations_LV, WT_frequncy = oscillation_statistics(traj[0], traj[1], data_frequency, fluent=True)
-            if len(oscillations_LV[0]) > 0:
-                mid_point = oscillations_LV[0][0]
+        if SAVE_INFO:
+            if denoise:
+                a = 'DN'
             else:
-                print(selected_oscillation_set[traj_num][-1], ': can\'t find oscillation')
-                traj_num += 1
-                continue
+                a = 'N'
+            suffix = '_%s_%s'%(a, str(MA_window))
+            file = open(os.path.dirname(__file__) + folder_name + 'oscillation_info' + suffix, 'wb')
+            pickle.dump(oscillation_info, file)
+            file.close()
+            file = open(os.path.dirname(__file__) + folder_name + 'complete_oscillation_info' + suffix, 'wb')
+            pickle.dump(complete_oscillation_info, file)
+            file.close()
 
-            extended_traj, non_used_value = traj_by_oscillation_manual(overall_traj, [(mid_point-extended_period,
-                                                               mid_point+extended_period)])
-
-            if selected_oscillation_set[traj_num][6].replace('\n', '') == 'long':
-                cruise = True
-            else:
-                cruise = False
-
-            extended_traj = extended_traj[0]
-            traj[0] = [tt - mid_point for tt in traj[0]]
-            extended_traj[0] = [tt - mid_point for tt in extended_traj[0]]
-
-            oscillations_LV, WT_frequncy = oscillation_statistics(traj[0], traj[1], data_frequency,
-                                                                  fluent=True, cruise=cruise)
-            try:
-                oscillations_FV, WT_frequncy = oscillation_statistics(traj[0], traj[2], data_frequency,
-                                                                  fluent=True, cruise=cruise,
-                                                                  end_speed_bound=oscillations_LV[0][5])
-            except:
-                oscillations_FV = [[]]
-                print(selected_oscillation_set[traj_num][-1],'ACC1 oscillation not recognized')
-            if len(traj) > 3:
-                try:
-                    oscillations_TV, WT_frequncy = oscillation_statistics(traj[0], traj[3], data_frequency,
-                                                                          fluent=True, cruise=cruise,
-                                                                          end_speed_bound=oscillations_FV[0][5])
-                except:
-                    oscillations_TV = [[]]
-                    print(selected_oscillation_set[traj_num][-1],'ACC2 oscillation not recognized')
-            y_limit = [[20, 40], [30, 50], [50, 70]]
-            if oscillations_LV[0][3] > 55:
-                used_y_limit = y_limit[2]
-                speed_group = 'high'
-            elif oscillations_LV[0][3] > 40:
-                used_y_limit = y_limit[1]
-                speed_group = 'mid'
-            else:
-                used_y_limit = y_limit[0]
-                speed_group = 'low'
-
-            if extended_period is not None:
-                width = 12
-            else:
-                width = 7
-            stablization_before_LV = get_a_part_before_a_point(extended_traj[1], extended_traj[0],
-                                                               oscillations_LV[0][2], 30)
-            stablization_before_FV = get_a_part_before_a_point(extended_traj[2], extended_traj[0],
-                                                               oscillations_LV[0][2], 30)
-
-            spacing_FV = [extended_traj[4][j] - extended_traj[5][j] for j in range(len(extended_traj[5]))]
-            spacing_TV = [extended_traj[5][j] - extended_traj[6][j] for j in range(len(extended_traj[6]))]
-            stablization_before_spacing_FV = get_a_part_before_a_point(spacing_FV, extended_traj[0],
-                                                               oscillations_LV[0][2], 30)
-
-            speed_diff_FV = [extended_traj[1][i] - extended_traj[2][i] for i in range(len(extended_traj[1]))]
-            speed_diff_TV = [extended_traj[2][i] - extended_traj[3][i] for i in range(len(extended_traj[2]))]
-            spacing_from_speed_FV = [sum(speed_diff_FV[:i + 1]) * 0.44704 / 10 for i in range(len(speed_diff_FV))]
-            spacing_from_speed_TV = [sum(speed_diff_TV[:i + 1]) * 0.44704 / 10 for i in range(len(speed_diff_TV))]
-
-            fine_measurement_list = [76, 77, 80, 91, 96, 48]
-            fine_measurement_list2 = [30, 25]
-            if selected_oscillation_set[traj_num][-1] in fine_measurement_list:
-                oscillations_LV, oscillations_FV = min_speed_fine_measurment(oscillations_LV, oscillations_FV,
-                                                                             extended_traj[1], extended_traj[2],
-                                                                             extended_traj[0])
-            if selected_oscillation_set[traj_num][-1] in fine_measurement_list2:
-                oscillations_LV = min_speed_fine_measurment_2(oscillations_LV, oscillations_FV,
-                                                               extended_traj[1],
-                                                               extended_traj[0])
-            oscillation_info.append((oscillations_LV[0],oscillations_FV[0],
-                                     oscillations_TV[0],selected_oscillation_set[traj_num][2:]+[speed_group],
-                                     stablization_before_LV, stablization_before_FV, stablization_before_spacing_FV,
-                                     spacing_FV,spacing_from_speed_FV, extended_traj[1]))
-
-            #full_speed, location
-            LV_complete = (extended_traj[1])
-            #full_speed, full_spacing, full_spacing_from_v, location
-            FV_complete = (extended_traj[2], spacing_FV, spacing_from_speed_FV)
-            #full_speed, full_spacing, full_spacing_from_v, location
-            TV_complete = (extended_traj[3], spacing_TV, spacing_from_speed_TV)
-
-            LOCATION_INFO = (extended_traj[4], extended_traj[5], extended_traj[6])
-
-            complete_oscillation_info.append((oscillations_LV[0],oscillations_FV[0],oscillations_TV[0],
-                                              selected_oscillation_set[traj_num][2:]+[speed_group],
-                                              LV_complete, FV_complete, TV_complete, extended_traj[0],LOCATION_INFO,
-                                              mid_point))
-
-            traj_num += 1
-
-    file = open(os.path.dirname(__file__) + folder_name + 'oscillation_info','wb')
-    pickle.dump(oscillation_info, file)
-    file.close()
-    file = open(os.path.dirname(__file__) + folder_name + 'complete_oscillation_info','wb')
-    pickle.dump(complete_oscillation_info, file)
-    file.close()
 
 
 def available_in_all(location, start_end_time, veh_num):
