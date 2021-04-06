@@ -1,5 +1,5 @@
 from base_functions import moving_average,find_nearest_index, get_group_info,linear_regression, \
-    oblique, WT_MEXH, get_stable_speed
+    oblique, WT_MEXH, get_stable_speed, WT_MEXH2012
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
@@ -8,7 +8,9 @@ font = {'family': 'DejaVu Sans',
         'size': 16}
 rc('font', **font)
 
-def oscillation_statistics(t,v,expected_frequency,fluent, WT_frequency = None, cruise = False, end_speed_bound = False):
+def oscillation_statistics(t,v,expected_frequency,fluent, WT_frequency = None, cruise = False,
+                           start_speed_bound = False,end_speed_bound = False,speed_level=False, method = '2012'):
+    v = list(v)
     oscillation_pair = [(0,len(v))]
     oscillation_candidates=[v[p[0]:p[1]] for p in oscillation_pair]
 
@@ -22,9 +24,13 @@ def oscillation_statistics(t,v,expected_frequency,fluent, WT_frequency = None, c
     o=0
     for t_p in minimum_point_time_index:
         idle_threshold = .5
-        idle_threshold_rate = 1
-        previous_period = v[max(0, t_p - 150 * expected_frequency):t_p]
-        following_period = v[t_p:min(len(t), t_p + 150 * expected_frequency)]
+        if cruise:
+            following_consideration = 150
+        else:
+            following_consideration = 20
+
+        previous_period = v[max(0, t_p - following_consideration * expected_frequency):t_p]
+        following_period = v[t_p:min(len(t), t_p + following_consideration * expected_frequency)]
         previous_d = [(previous_period[i] - previous_period[i - 1]) * expected_frequency for i in
                       range(1, len(previous_period))]
         if fluent:
@@ -38,20 +44,41 @@ def oscillation_statistics(t,v,expected_frequency,fluent, WT_frequency = None, c
         following_a = moving_average(following_a, moving_period)
         following_a = following_a + [following_a[-1]]
         try:
-            idle_start, idle_start_speed, start_point, start_speed, minimum_d, used_frequency = \
-                deceleration_parameters_WT(previous_period, previous_d, idle_threshold,
-                                           WT_frequency,obq=True)
+            if method == '2012':
+                idle_start, idle_start_speed, start_point, start_speed, minimum_d, used_frequency = \
+                    deceleration_parameters_WT2012(previous_period, previous_d, idle_threshold,
+                                               WT_frequency,start_speed_bound,obq=True)
+            elif method == '2011':
+                idle_start, idle_start_speed, start_point, start_speed, minimum_d, used_frequency = \
+                    deceleration_parameters_WT(previous_period, previous_d, idle_threshold,
+                                               WT_frequency,start_speed_bound,obq=True)
+            else:
+                idle_start, idle_start_speed, start_point, start_speed, minimum_d = \
+                    deceleration_parameters(None, None, previous_period, previous_d,
+                                            idle_threshold, None)
+                used_frequency = None
+
         except:
             return [[]]
-
         oscillations[o].append(round(t[t_p-len(previous_period)+start_point],2))
         oscillations[o].append(round(start_speed,2))
         #2 deceleration start
         #3 deceleration start speed
+
+
         try:
-            idle_end, idle_end_speed, end_point, end_speed, maximum_a = \
-                acceleration_parameters_WT(following_period, following_a, idle_threshold,
-                                           cruise,end_speed_bound,obq=True)
+            if method == '2012':
+                idle_end, idle_end_speed, end_point, end_speed, maximum_a = \
+                    acceleration_parameters_WT2012(following_period, following_a, idle_threshold,
+                                                   cruise, end_speed_bound, speed_level, obq=True)
+            elif method == '2011':
+                idle_end, idle_end_speed, end_point, end_speed, maximum_a = \
+                    acceleration_parameters_WT(following_period, following_a, idle_threshold,
+                                                   cruise, end_speed_bound, speed_level, obq=True)
+            else:
+                idle_end, idle_end_speed, end_point, end_speed, maximum_a = \
+                    acceleration_parameters(None, None, following_period, following_a, idle_threshold,
+                                            None, cruise, end_speed_bound)
         except:
             return [[]]
 
@@ -95,13 +122,14 @@ def oscillation_statistics(t,v,expected_frequency,fluent, WT_frequency = None, c
         # 16 idle duration
     return oscillations, used_frequency
 
+
 def deceleration_parameters(minimum_speed, o, previous_period, previous_d,
                             idle_threshold, idle_threshold_rate):
 
     minimum_d = 0
     start_point = len(previous_period) - 1
-    idle_start = len(previous_period) - 1
-    idle_start_speed = minimum_speed[o]
+    # idle_start = len(previous_period) - 1
+    # idle_start_speed = minimum_speed[o]
     for i in np.arange(len(previous_period) - 2, 1, -1):
         # recognize the deceleration start point
         if previous_period[i] > previous_period[start_point]:
@@ -112,29 +140,68 @@ def deceleration_parameters(minimum_speed, o, previous_period, previous_d,
             break
     start_speed = previous_period[start_point]
 
-    idle_threshold_rate = abs(minimum_d / 3)
-    for i in np.arange(len(previous_period) - 2, 1, -1):
-        # recognize the idle start point
-        if (abs(previous_d[i]) < idle_threshold_rate) or ((previous_period[i] - minimum_speed[o]) < idle_threshold):
-            idle_start = i
-            idle_start_speed = previous_period[i]
-        if previous_d[i] == (minimum_d):
-            break
+    # idle_threshold_rate = abs(minimum_d / 3)
+    # for i in np.arange(len(previous_period) - 2, 1, -1):
+    #     # recognize the idle start point
+    #     if (abs(previous_d[i]) < idle_threshold_rate) or ((previous_period[i] - minimum_speed[o]) < idle_threshold):
+    #         idle_start = i
+    #         idle_start_speed = previous_period[i]
+    #     if previous_d[i] == (minimum_d):
+    #         break
+
+    idle_start, idle_start_speed, minimum_d = d_end(previous_d, previous_period, idle_threshold, start_point)
 
     return idle_start, idle_start_speed, start_point, start_speed, minimum_d
 
-def deceleration_parameters_WT(previous_period, previous_d, idle_threshold, WT_frequency, obq = False):
+
+
+def acceleration_parameters(minimum_speed, o, following_period, following_a,
+                            idle_threshold, idle_threshold_rate, cruise, speed_bound):
+    maximum_a = 0
+    end_point = 0
+    # idle_end = 0
+    # idle_end_speed = minimum_speed[o]
+    for i in np.arange(1, len(following_period)):
+        if following_period[i] >= following_period[end_point]:
+            end_point = i
+            if following_a[i] > maximum_a:
+                maximum_a = following_a[i]
+        if (maximum_a == max(following_a)) and (following_a[i] < (maximum_a * 0.05)):
+            break
+    end_speed = following_period[end_point]
+
+    idle_end, idle_end_speed, maximum_a = a_start(following_a, end_point, following_period, idle_threshold,
+                                                  cruise, speed_bound)
+    # idle_threshold_rate = maximum_a / 3
+    # for i in np.arange(1, len(following_period)):
+    #     if  (following_a[i] < idle_threshold_rate) or ((following_period[i] - minimum_speed[o]) < idle_threshold):
+    #         idle_end = i
+    #         idle_end_speed = following_period[i]
+    #     if  following_a[i] > (maximum_a * .9):
+    #         break
+
+    return idle_end, idle_end_speed, end_point, end_speed, maximum_a
+
+
+
+
+
+def deceleration_parameters_WT(previous_period, previous_d, idle_threshold, WT_frequency, speed_bound, obq = False):
     # print('new')
     if obq:
         oblique_previous_period = oblique(previous_period)
     else:
         oblique_previous_period = previous_period - np.mean(previous_period) #normalize
 
+
     frequency = 16
-    peak_wt, total_energy = WT_MEXH(oblique_previous_period, frequency_bound=16)
+    if (min(previous_d) > -3.25) and (30 < previous_period[-1] < 45): #mild ones
+        frequency = 8
+
+    peak_wt, total_energy = WT_MEXH(oblique_previous_period, frequency_bound=frequency)
     if len(peak_wt) == 1:
         start_point = peak_wt[0]
-    else:
+    elif len(peak_wt) > 0:
         point_index = []
         energy_order = np.argsort(-total_energy[peak_wt])
         maximum_peak_speed = max([previous_period[p] for p in peak_wt])
@@ -146,11 +213,16 @@ def deceleration_parameters_WT(previous_period, previous_d, idle_threshold, WT_f
             if peak_speed > min(maximum_peak_speed - 3, get_stable_speed(maximum_peak_speed) - 1):
                 point_index.append(p)
         start_point = peak_wt[max(point_index)]
-    start_speed = previous_period[start_point]
+    if len(peak_wt) > 0:
+        start_speed = previous_period[start_point]
 
-    if start_speed < get_stable_speed(start_speed)  - .5:
+    if not speed_bound:
+        speed_bound = get_stable_speed(np.mean(previous_period[:50])) - 5 # work for Tesla, might adjust for others
+        speed_bound = get_stable_speed(np.mean(previous_period[:50]))
+
+    if (len(peak_wt) == 0) or (start_speed < speed_bound  - .5):
         frequency = 24
-        peak_wt, total_energy = WT_MEXH(oblique_previous_period, frequency_bound=24)
+        peak_wt, total_energy = WT_MEXH(oblique_previous_period, frequency_bound=frequency)
         if len(peak_wt) == 1:
             start_point = peak_wt[0]
         else:
@@ -167,9 +239,9 @@ def deceleration_parameters_WT(previous_period, previous_d, idle_threshold, WT_f
     start_speed = previous_period[start_point]
     # print(start_speed)
 
-    if start_speed < get_stable_speed(start_speed)  - .5:
+    if start_speed < speed_bound  - .5:
         frequency = 32
-        peak_wt, total_energy = WT_MEXH(oblique_previous_period, frequency_bound=32)
+        peak_wt, total_energy = WT_MEXH(oblique_previous_period, frequency_bound=frequency)
         if len(peak_wt) == 1:
             start_point = peak_wt[0]
         else:
@@ -183,30 +255,98 @@ def deceleration_parameters_WT(previous_period, previous_d, idle_threshold, WT_f
                 if peak_speed > min(maximum_peak_speed - 2, get_stable_speed(maximum_peak_speed) - 1):
                     point_index.append(p)
             start_point = peak_wt[max(point_index)]
+
+
     start_speed = previous_period[start_point]
-    minimum_d = min(previous_d[start_point:])
 
-
-    idle_threshold_rate = abs(minimum_d / 3)
-    idle_start = len(previous_period) - 1
-    idle_start_speed = previous_period[-1]
-    for i in np.arange(len(previous_period) - 2, 1, -1):
-        # recognize the idle start point
-        if (abs(previous_d[i]) < idle_threshold_rate) or ((previous_period[i] - previous_period[-1]) < idle_threshold):
-            idle_start = i
-            idle_start_speed = previous_period[i]
-        if previous_d[i] < (minimum_d * .9):
-            break
+    idle_start, idle_start_speed, minimum_d = d_end(previous_d, previous_period, idle_threshold, start_point)
 
     return idle_start, idle_start_speed, start_point, start_speed, minimum_d, frequency
 
-def acceleration_parameters_WT(following_period, following_a, idle_threshold, cruise, speed_bound, obq = False):
-    if cruise == False:
-        initial_fb = 32
-        second_try_fb = 16
+
+
+def deceleration_parameters_WT2012(previous_period, previous_d, idle_threshold, WT_frequency, speed_bound, obq = False):
+    # print('new')
+    frequency = 32
+
+    if obq:
+        oblique_previous_period = oblique(previous_period)
+    else:
+        oblique_previous_period = previous_period - np.mean(previous_period) #normalize
+        # oblique_previous_period = previous_period
+
+    peak_wt, wt_modules, total_energy = WT_MEXH2012(oblique_previous_period, frequency_bound=frequency)
+
+    if len(peak_wt) == 1:
+        start_point = peak_wt[0]
+    else:
+        point_index = []
+        energy_order = np.argsort(-total_energy[peak_wt])
+        maximum_peak_speed = max([previous_period[p] for p in peak_wt])
+        for p in energy_order:
+            # only consider the two maximum energy point close to the stabilization speed
+            if len(point_index) == 2:
+                break
+            peak_speed = previous_period[peak_wt[p]]
+            if not speed_bound:
+                speed_bound = get_stable_speed(np.mean(previous_period[:50])) - 5
+            if peak_speed > max(speed_bound-2, min(maximum_peak_speed - 2, get_stable_speed(maximum_peak_speed) - 1)):
+                point_index.append(p)
+        start_point = peak_wt[max(point_index)]
+    start_speed = previous_period[start_point]
+
+    idle_start, idle_start_speed, minimum_d = d_end(previous_d, previous_period, idle_threshold, start_point)
+
+    return idle_start, idle_start_speed, start_point, start_speed, minimum_d, frequency
+
+
+def acceleration_parameters_WT2012(following_period, following_a, idle_threshold, cruise, speed_bound, speed_level,obq = False):
+    frequency = 15
+    if obq:
+        oblique_following_period = oblique(following_period)
+    else:
+        oblique_following_period = following_period - np.mean(following_period) #normalize
+
+    peak_wt, wt_modules, total_energy = WT_MEXH2012(oblique_following_period, frequency_bound=frequency)
+
+    if len(peak_wt) == 1:
+        point_index = 0
+        end_point = peak_wt[point_index]
+    else:
+        point_index = []
+        energy_order = np.argsort(-total_energy[peak_wt])
+        maximum_peak_speed = max([following_period[p] for p in peak_wt])
+
+        for p in energy_order:
+            # only consider the two maximum energy point close to the stabilization speed
+            if len(point_index) == 2:
+                break
+            peak_speed = following_period[peak_wt[p]]
+
+            if speed_bound is not False:
+                if peak_speed > min(speed_bound - 2, get_stable_speed(maximum_peak_speed) - 1.1):
+                    point_index.append(p)
+            else:
+                if peak_speed > min(maximum_peak_speed - 2, get_stable_speed(maximum_peak_speed) - 1):
+                    point_index.append(p)
+        end_point = peak_wt[min(point_index)]
+
+    end_speed = following_period[end_point]
+
+    idle_end, idle_end_speed, maximum_a = a_start(following_a, end_point, following_period, idle_threshold,
+                                                  cruise, speed_bound)
+
+    return idle_end, idle_end_speed, end_point, end_speed, maximum_a
+
+
+def acceleration_parameters_WT(following_period, following_a, idle_threshold, cruise, speed_bound, speed_level,obq = False):
+
+    if following_period[0] > 40 and max(following_a) > 2 and (not cruise):#high speed strong not cruise
+        initial_fb = 16
     else:
         initial_fb = 32
-        second_try_fb = 16
+
+    second_try_fb = 16
     if obq:
         oblique_following_period = oblique(following_period)
     else:
@@ -225,21 +365,26 @@ def acceleration_parameters_WT(following_period, following_a, idle_threshold, cr
         point_index = []
         energy_order = np.argsort(-total_energy[peak_wt])
         maximum_peak_speed = max([following_period[p] for p in peak_wt])
-        for p in energy_order: # only consider the two maximum energy point close to the stabilization speed
+
+        for p in energy_order:
+            # only consider the two maximum energy point close to the stabilization speed
             if len(point_index) == 2:
                 break
             peak_speed = following_period[peak_wt[p]]
+
             if speed_bound is not False:
-                if peak_speed > min(speed_bound - 1, get_stable_speed(maximum_peak_speed) - 1):
+                if peak_speed > min(speed_bound - 1, get_stable_speed(maximum_peak_speed) - 1.1):
                     point_index.append(p)
             else:
-                if peak_speed > min(maximum_peak_speed - 2, get_stable_speed(maximum_peak_speed) - 1):
+                if peak_speed > min(maximum_peak_speed - 2, get_stable_speed(maximum_peak_speed) - 1.1):
                     point_index.append(p)
+        if len(point_index) == 0:
+            point_index.append(np.argmax([following_period[p] for p in peak_wt]))
         end_point = peak_wt[min(point_index)]
 
-
     end_speed = following_period[end_point]
-    if (speed_bound is not False) and cruise:
+
+    if (speed_bound is not False) and (cruise or (speed_bound < 40)):
         fb = second_try_fb
         if  ((maximum_peak_speed - end_speed) > .25) and \
             (((peak_wt[np.argmax([following_period[p] for p in peak_wt])]) - peak_wt[min(point_index)]) < 50):
@@ -274,6 +419,30 @@ def acceleration_parameters_WT(following_period, following_a, idle_threshold, cr
             else:
                 early_point = False
 
+    idle_end, idle_end_speed, maximum_a = a_start(following_a, end_point, following_period, idle_threshold,
+                                                  cruise, speed_bound)
+
+    return idle_end, idle_end_speed, end_point, end_speed, maximum_a
+
+
+
+def d_end(previous_d, previous_period, idle_threshold, start_point):
+    minimum_d = min(previous_d[start_point:])
+    idle_threshold_rate = abs(minimum_d / 3)
+    idle_start = len(previous_period) - 1
+    idle_start_speed = previous_period[-1]
+    for i in np.arange(len(previous_period) - 2, 1, -1):
+        # recognize the idle start point
+        if (abs(previous_d[i]) < idle_threshold_rate) or ((previous_period[i] - previous_period[-1]) < idle_threshold):
+            idle_start = i
+            idle_start_speed = previous_period[i]
+        if previous_d[i] < (minimum_d * .9):
+            break
+    return idle_start, idle_start_speed, minimum_d
+
+
+def a_start(following_a, end_point, following_period, idle_threshold, cruise, speed_bound = False):
+
     maximum_a = max(following_a[:end_point])
     # print(end_speed)
     idle_threshold_rate = maximum_a / 3
@@ -283,40 +452,19 @@ def acceleration_parameters_WT(following_period, following_a, idle_threshold, cr
         if (following_a[i] < idle_threshold_rate) or ((following_period[i] - following_period[0]) < idle_threshold):
             idle_end = i
             idle_end_speed = following_period[i]
-        if following_a[i] > (maximum_a * .9):
-            break
 
-    return idle_end, idle_end_speed, end_point, end_speed, maximum_a
-
-
-
-
-def acceleration_parameters(minimum_speed, o, following_period, following_a,
-                            idle_threshold, idle_threshold_rate, start_speed):
-    maximum_a = 0
-    end_point = 0
-    idle_end = 0
-    idle_end_speed = minimum_speed[o]
-    for i in np.arange(1, len(following_period)):
-        if following_period[i] >= following_period[end_point]:
-            end_point = i
-            if following_a[i] > maximum_a:
-                maximum_a = following_a[i]
-        if (maximum_a == max(following_a)) and (following_a[i] < (maximum_a * 0.05)):
-            break
-    end_speed = following_period[end_point]
-
-    idle_threshold_rate = maximum_a / 3
-    for i in np.arange(1, len(following_period)):
-        if  (following_a[i] < idle_threshold_rate) or ((following_period[i] - minimum_speed[o]) < idle_threshold):
-            idle_end = i
-            idle_end_speed = following_period[i]
-        if  following_a[i] > (maximum_a * .9):
-            break
-
-    return idle_end, idle_end_speed, end_point, end_speed, maximum_a
-
-
+        if cruise:
+            if (following_period[i] - following_period[0]) > idle_threshold * 2:
+                # first vehicle
+                if (speed_bound is False) and (following_a[i] > (maximum_a * .75)):
+                    break
+                # following vehicles
+                if (speed_bound is not False) and (following_a[i] > (maximum_a * .9)):
+                    break
+        if not cruise:
+            if following_a[i] > (maximum_a * .75):
+                break
+    return idle_end, idle_end_speed, maximum_a
 
 
 def save_oscillations(oscillation_FV,oscillation_LV,run,set,part, folder_name = ''):
@@ -677,8 +825,6 @@ def read_oscillation_data(folder_name = ''):
         i += 1
     fo.close()
 
-
-
     return data
 
 def draw_oscillation_statistics_multiple_val(data,x_column,y_column_set,label_column,x_label,mark,y_label,y_limit,stick_plot=False):
@@ -817,3 +963,7 @@ def draw_oscillation_statistics_2_and_more(data,x_column_set,x_mark,secondary_la
 
     plt.savefig('figures_scatters/new/%s_'%mark+y_label+'.png')
     plt.close()
+
+
+
+

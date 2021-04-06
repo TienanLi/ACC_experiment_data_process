@@ -7,8 +7,6 @@ from sklearn import linear_model, metrics
 from scipy import stats
 from math import sin, cos, sqrt, atan2, radians, floor, log10
 from scipy.interpolate import griddata
-from mpl_toolkits import mplot3d
-from pyproj import Proj, transform
 
 def draw_fig(x,x_label,y,y_label):
     fig = plt.figure(figsize=(8, 8), dpi=300)
@@ -268,10 +266,11 @@ def ACC_in_use(speed_time_series,speed,LEAD_INFO_time_series,front_space,relativ
         traj_info.append((speed_time_series[ss:se],speed[ss:se],LEAD_INFO_time_series[ls:le],front_space[ls:le],relative_speed[ls:le]))
     return traj_info
 
-def linear_regression(X, Y, weight = None):
+def linear_regression(X, Y, weight = None, size = True):
     X=np.array(X).reshape(len(X),1).astype(np.float32)
     Y=np.array(Y).reshape(len(Y),1).astype(np.float32)
-    print('size:',len(X))
+    if size:
+        print('size:',len(X))
     regr = linear_model.LinearRegression()
     regr.fit(X, Y, sample_weight = weight)
     y_pred = regr.predict(X)
@@ -339,12 +338,13 @@ def oblique(data):
 
 def get_stable_speed(speed):
     stable_speed = [35, 45, 65]
-    if speed > 61:
+    if speed > 61.5:
         return stable_speed[2]
-    elif speed > 42:
+    elif speed > 41.5:
         return stable_speed[1]
     else:
         return stable_speed[0]
+
 
 
 def WT_MEXH(y, frequency_bound = 32, prominence = 1):
@@ -356,15 +356,69 @@ def WT_MEXH(y, frequency_bound = 32, prominence = 1):
         z += 1
     total_energy = h / frequency_bound
     peak_wt = find_peaks(total_energy, prominence=prominence)[0]  # use prominence or width
+    return peak_wt, total_energy
 
-    # fig = plt.figure()
-    # ax = fig.add_subplot(211)
-    # plt.plot(y)
-    # ax = fig.add_subplot(212)
-    # plt.plot(total_energy)
+def WT_MEXH2012(y, frequency_bound = 32, prominence = .5):
+    coef, freqs = pywt.cwt(y, np.arange(1, frequency_bound + 1), "mexh")
+    coef = coef ** 2
+    local_peak_wt = np.zeros((frequency_bound, len(y)))
+    last_p = []
+    for i in range(len(coef) - 1, 0, -1):
+        local_p = find_peaks(coef[i], prominence=prominence)[0]
+        if len(local_p) == 0:
+            continue
+        local_peak_wt[i, local_p] = 1
+        if len(last_p) == 0:
+            last_p = local_p
+        else:
+            new_p = []
+            for p in last_p:
+                if min(abs(local_p - p)) <= 5:
+                    new_p.append(local_p[np.argmin(abs(local_p - p))])
+                elif i < 7:
+                    new_p.append(p)
+            if len(new_p) == 0:
+                break
+            else:
+                last_p = new_p
+
+    _, total_energy = WT_MEXH(y, frequency_bound = 16)
+
+    # fig = plt.figure(figsize=(12, 8))
+    #
+    # bx = fig.add_subplot(411)
+    # bx.set_position([0.15, 0.7, 0.8, 0.15])
+    # bx.imshow(coef, aspect='auto', origin='lower')
+    # for i in range(len(coef)):
+    #     local_peak_wt = find_peaks(coef[i], prominence=prominence)[0]
+    #     plt.scatter(local_peak_wt, [i for k in local_peak_wt], c='r')
+    # plt.xlim([0, len(y) - 1])
+    # plt.ylabel('maxima line \n- 2012')
+    #
+    # cx = fig.add_subplot(412)
+    # cx.set_position([0.15, 0.5, 0.8, 0.15])
+    # cx.plot(total_energy)
+    # plt.xlim([0, len(y) - 1])
+    # plt.ylabel('average energy \n- 2011')
+    #
+    # ax = fig.add_subplot(413)
+    # ax.set_position([0.15, 0.3, 0.8, 0.15])
+    # ax.plot(oblique(y))
+    # plt.xlim([0, len(y) - 1])
+    # plt.ylabel('input')
+    #
+    # ax = fig.add_subplot(414)
+    # ax.set_position([0.15, 0.1, 0.8, 0.15])
+    # ax.plot(y)
+    # y = np.array(y)
+    # ax.scatter(last_p, y[last_p], label='2012', c='r')
+    # plt.legend()
+    # plt.xlim([0, len(y) - 1])
+    # plt.ylabel('speed')
     # plt.show()
 
-    return peak_wt, total_energy
+    return last_p, coef, total_energy
+
 
 def time_of_week_to_hms(time_point, time_zone):
     hour = np.floor(time_point / (60 * 60) % 24) + time_zone
@@ -463,22 +517,63 @@ def derivative(X, frequency = 0.1): #n to n-1 dimension
     derivative = diff / frequency
     return derivative
 
-def denoise_speed(X, derThreshold = (-5, 5)):
+def denoise_speed(X, derThreshold = (-5, 4)):
     X = np.array(X)
     X = X * 0.44704 #from mph to m/s
     Xprime = derivative(X)
-    noises = Xprime[(Xprime > derThreshold[1]) | (Xprime < derThreshold[0])]
-    while len(noises) > 0:
-        for i in range(len(Xprime) - 1):
+    noises = 1
+    iteration = 0
+    while noises > 0:
+        iteration += 1
+        noises = 0
+        i = 0
+        while i < len(Xprime) - 1:
             if (Xprime[i] > derThreshold[1]) or (Xprime[i] < derThreshold[0]):
-                X[i + 1] = (X[i] + X[i + 2]) / 2
+                iStart, iEnd = i, i
+                if Xprime[i] > derThreshold[1]:
+                    sign = 1
+                if Xprime[i] < derThreshold[0]:
+                    sign = -1
+                noises += 1
+                while i < len(Xprime) - 1:
+                    i += 1
+                    if sign == 1:
+                        if Xprime[i] < derThreshold[0]:
+                            iEnd = i
+                    if sign == -1:
+                        if Xprime[i] > derThreshold[1]:
+                            iEnd = i
+
+                    if iEnd > iStart:
+                        if iStart > 0:
+                            slope = (X[iEnd + 1] - X[iStart]) / (iEnd - iStart + 1)
+                            for j in range(iStart + 1, iEnd + 1):
+                                X[j] = X[j - 1] + slope
+                        else:
+                            for j in range(iEnd, iStart - 1, -1):
+                                X[j] = X[j + 1]
+                        break
+                    if i > iStart + 10:
+                        break
+                if iStart == iEnd:
+                    if iStart == 0:
+                        X[iStart] = 2 * X[iStart + 1] - X[iStart + 2]
+                    else:
+                        X[iStart + 1] = (X[iStart] + X[iStart + 2]) / 2
+            i += 1
+
         if (Xprime[-1] > derThreshold[1]) or (Xprime[-1] < derThreshold[0]):
             X[-1] = 2 * X[-2] - X[-3]
+            noises += 1
         Xprime = derivative(X)
-        noises = Xprime[(Xprime > derThreshold[1]) | (Xprime < derThreshold[0])]
+        if iteration > 10:
+            break
+
     return X / 0.44704 #from m/s back to mph
 
-def denoise_loc(loc, speedRef, errRange = 3):
+
+
+def denoise_loc(loc, speedRef, errRange = 5):
     resolution = 0.1
     speedRef = np.array(speedRef)
     speedRef = speedRef * 0.44704 #from mph to m/s
@@ -532,51 +627,10 @@ def denoise_loc(loc, speedRef, errRange = 3):
             break
     return loc
 
-# def denoise_loc(loc, derThreshold = (-5, 5)):
-#     loc = np.array(loc)
-#     speedPrime = derivative(derivative(loc))
-#     noises = 1
-#     iteration = 0
-#     while noises > 0:
-#         iteration += 1
-#         noises = 0
-#         i = 0
-#         while i < len(speedPrime):
-#             if (speedPrime[i] > derThreshold[1]) or (speedPrime[i] < derThreshold[0]):
-#                 iStart, iEnd = i, i
-#                 if speedPrime[i] > derThreshold[1]:
-#                     sign = 1
-#                 if speedPrime[i] < derThreshold[0]:
-#                     sign = -1
-#                 noises += 1
-#                 while i < len(speedPrime) - 1:
-#                     i += 1
-#                     if sign == 1:
-#                         if speedPrime[i] < derThreshold[0]:
-#                             iEnd = i
-#                     if sign == -1:
-#                         if speedPrime[i] > derThreshold[1]:
-#                             iEnd = i
-#
-#                     if iEnd > iStart:
-#                         if iStart > 0:
-#                             slope = (loc[iEnd + 1] - loc[iStart]) / (iEnd - iStart + 1)
-#                             for j in range(iStart + 1, iEnd + 1):
-#                                 loc[j] = loc[j - 1] + slope
-#                         else:
-#                             for j in range(iEnd, iStart - 1, -1):
-#                                 loc[j] = 2 * loc[j + 1] - loc[j + 2]
-#                         break
-#                     if i > iStart + 10:
-#                         break
-#                 if iStart == iEnd:
-#                     if iStart == 0:
-#                         loc[iStart] = 2 * loc[iStart + 1] - loc[iStart + 2]
-#                     else:
-#                         loc[iStart + 1] = (loc[iStart] + loc[iStart + 2]) / 2
-#             i += 1
-#
-#         speedPrime = derivative(derivative(loc))
-#         if iteration > 10:
-#             break
-#     return loc
+def veh_name(date):
+    if date == 12:
+        return 'Tesla'
+    elif date in [14, 15]:
+        return 'Civic'
+    else:
+        return 'Prius'
