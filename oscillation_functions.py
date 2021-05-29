@@ -8,7 +8,7 @@ font = {'family': 'DejaVu Sans',
         'size': 16}
 rc('font', **font)
 
-def oscillation_statistics(t,v,expected_frequency,fluent, WT_frequency = None, cruise = False,
+def oscillation_statistics(t,v,data_frquency,fluent, WT_frequency = None, cruise = False,
                            start_speed_bound = False,end_speed_bound = False,speed_level=False, method = '2012'):
     v = list(v)
     oscillation_pair = [(0,len(v))]
@@ -29,34 +29,34 @@ def oscillation_statistics(t,v,expected_frequency,fluent, WT_frequency = None, c
         else:
             following_consideration = 20
 
-        previous_period = v[max(0, t_p - following_consideration * expected_frequency):t_p]
-        following_period = v[t_p:min(len(t), t_p + following_consideration * expected_frequency)]
-        previous_d = [(previous_period[i] - previous_period[i - 1]) * expected_frequency for i in
+        previous_period = v[max(0, t_p - following_consideration * data_frquency):t_p]
+        following_period = v[t_p:min(len(t), t_p + following_consideration * data_frquency)]
+        previous_d = [(previous_period[i] - previous_period[i - 1]) * data_frquency for i in
                       range(1, len(previous_period))]
         if fluent:
-            moving_period = 2 * expected_frequency
+            moving_period = 2 * data_frquency
         else:
-            moving_period = 4 * expected_frequency
+            moving_period = 4 * data_frquency
         previous_d = moving_average(previous_d, moving_period)
         previous_d = [previous_d[0]] + previous_d
-        following_a = [(following_period[i] - following_period[i - 1]) * expected_frequency for i in
+        following_a = [(following_period[i] - following_period[i - 1]) * data_frquency for i in
                        range(1, len(following_period))]
         following_a = moving_average(following_a, moving_period)
         following_a = following_a + [following_a[-1]]
         try:
             if method == '2012':
-                idle_start, idle_start_speed, start_point, start_speed, minimum_d, used_frequency = \
+                idle_start, idle_start_speed, start_point, start_speed, minimum_d, used_WT_frequency = \
                     deceleration_parameters_WT2012(previous_period, previous_d, idle_threshold,
                                                WT_frequency,start_speed_bound,obq=True)
             elif method == '2011':
-                idle_start, idle_start_speed, start_point, start_speed, minimum_d, used_frequency = \
+                idle_start, idle_start_speed, start_point, start_speed, minimum_d, used_WT_frequency = \
                     deceleration_parameters_WT(previous_period, previous_d, idle_threshold,
                                                WT_frequency,start_speed_bound,obq=True)
             else:
                 idle_start, idle_start_speed, start_point, start_speed, minimum_d = \
                     deceleration_parameters(None, None, previous_period, previous_d,
                                             idle_threshold, None)
-                used_frequency = None
+                used_WT_frequency = None
 
         except:
             return [[]]
@@ -120,7 +120,7 @@ def oscillation_statistics(t,v,expected_frequency,fluent, WT_frequency = None, c
         # 14 accelereation duration
         # 15 avg deceleration rate
         # 16 idle duration
-    return oscillations, used_frequency
+    return oscillations, used_WT_frequency
 
 
 def deceleration_parameters(minimum_speed, o, previous_period, previous_d,
