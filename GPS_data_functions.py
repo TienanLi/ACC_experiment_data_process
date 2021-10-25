@@ -76,8 +76,9 @@ def read_data_from_seperated_csv(file_name,Lat_column,Lon_column,speed_column,ti
 
                 if line_num == 1:
                     start_time = location[veh][-1][3]
+            end_time = location[veh][-1][3]
             fo.close()
-            start_end_time[veh].append((start_time, location[veh][-1][3]))
+            start_end_time[veh].append((start_time, end_time))
 
     return location, start_end_time
 
@@ -340,9 +341,10 @@ def get_tau0_congested_s(date, headway, engine_mode):
 
     return tau0, congested_s
 
-def speed_visulization_2_subplot(traj_dict, folder_name, first_fig, SAVE_INFO = False,
+def speed_visulization_2_subplot(traj_dict, folder_name, first_fig, SAVE_INFO = False, SAVE_TRAJ = False,
                                  denoise = True, MA_window = 1, extended_period = 65, draw_veh = 3,
-                                 WT_method = '2011', veh_name = 'Tesla', high_plot = False, speed_shift = True):
+                                 WT_method = '2011', veh_name = 'Tesla', PLOT = True,
+                                 high_plot = False, speed_shift = True):
     #'oblique_traj', 'traj', 'spacing', 'IVS, 'eta'， 'elevation'
 
     traj_color = ['green', 'red', 'blue']
@@ -362,21 +364,21 @@ def speed_visulization_2_subplot(traj_dict, folder_name, first_fig, SAVE_INFO = 
         for traj in divided_traj:
             # which figure to produce
 
-
-            DRAW = False
-            SAVE_INFO = False
-            if selected_oscillation_set[traj_num][-1] in [3]:
-
-            # if  30 < selected_oscillation_set[traj_num][-1] < 50:
-
-            #     if selected_oscillation_set[traj_num][2] == '1':
-            #         if selected_oscillation_set[traj_num][4] == 'mild':
-            # if selected_oscillation_set[traj_num][6].replace('\n','') == 'long':
-            #     #             if selected_oscillation_set[traj_num][5] == 'mild':
-                DRAW = True
-            if not DRAW:
-                traj_num += 1
-                continue
+            #
+            # DRAW = False
+            # SAVE_INFO = False
+            # if selected_oscillation_set[traj_num][-1] in [3]:
+            #
+            # # if  30 < selected_oscillation_set[traj_num][-1] < 50:
+            #
+            # #     if selected_oscillation_set[traj_num][2] == '1':
+            # #         if selected_oscillation_set[traj_num][4] == 'mild':
+            # # if selected_oscillation_set[traj_num][6].replace('\n','') == 'long':
+            # #     #             if selected_oscillation_set[traj_num][5] == 'mild':
+            #     DRAW = True
+            # if not DRAW:
+            #     traj_num += 1
+            #     continue
 
             print('osc',selected_oscillation_set[traj_num][-1])
             if selected_oscillation_set[traj_num][6].replace('\n', '') == 'long':
@@ -406,6 +408,7 @@ def speed_visulization_2_subplot(traj_dict, folder_name, first_fig, SAVE_INFO = 
                 for i in range(4, 7): #location
                     extended_traj[i] = denoise_loc(extended_traj[i], speedRef= extended_traj[i - 3])
                     traj[i] = denoise_loc(traj[i], speedRef= traj[i - 3])
+
             if MA_window > 0:
                 for i in range(1, len(traj)):
                     extended_traj[i] = moving_average(extended_traj[i], MA_window * data_frequency)
@@ -526,268 +529,272 @@ def speed_visulization_2_subplot(traj_dict, folder_name, first_fig, SAVE_INFO = 
                                                   LOCATION_INFO,
                                                   mid_point))#speed in the info data are in mph
 
+            if PLOT:
+                fig = plt.figure(figsize=(width, 10), dpi=100)
+                bx = fig.add_subplot(211)
+                if high_plot:
+                    bx.set_position([0.15, 0.4, 0.8, 0.55])
+                else:
+                    bx.set_position([0.1, 0.5, 0.87, 0.35])
 
-            fig = plt.figure(figsize=(width, 10), dpi=100)
-            bx = fig.add_subplot(211)
-            if high_plot:
-                bx.set_position([0.15, 0.4, 0.8, 0.55])
-            else:
-                bx.set_position([0.1, 0.5, 0.87, 0.35])
+                slope = (used_y_limit[1] - 5) * 0.44704 / data_frequency
+                trajAxisLen = (used_y_limit[1] - 15) * 0.44704 * (X_LIMIT[1] - X_LIMIT[0])
 
-            slope = (used_y_limit[1] - 5) * 0.44704 / data_frequency
-            trajAxisLen = (used_y_limit[1] - 15) * 0.44704 * (X_LIMIT[1] - X_LIMIT[0])
+                plt.xlim(X_LIMIT)
+                plt.grid(True)
+                plt.title('VEH:' + veh_name +
+                            ', OSCILLATION: ' + str(selected_oscillation_set[traj_num][-1]) +
+                          ', HEADWAY: ' + selected_oscillation_set[traj_num][2] +
+                          # ', ENGINE MODE: ' + selected_oscillation_set[traj_num][3] +
+                          # '\nMAGNITUDE: ' + selected_oscillation_set[traj_num][4] +
+                          # ', BRAKE PATTERN: ' + selected_oscillation_set[traj_num][5] +
+                          ', CRUISE: ' + selected_oscillation_set[traj_num][6].replace('\n', '') + '\n',fontsize=12)
+                # ', oblique v_0:' + str(round(slope * 10 / 0.44704, 2)) + 'mph\n')
 
-            plt.xlim(X_LIMIT)
-            plt.grid(True)
-            plt.title('VEH:' + veh_name +
-                        ', OSCILLATION: ' + str(selected_oscillation_set[traj_num][-1]) +
-                      ', HEADWAY: ' + selected_oscillation_set[traj_num][2] +
-                      # ', ENGINE MODE: ' + selected_oscillation_set[traj_num][3] +
-                      # '\nMAGNITUDE: ' + selected_oscillation_set[traj_num][4] +
-                      # ', BRAKE PATTERN: ' + selected_oscillation_set[traj_num][5] +
-                      ', CRUISE: ' + selected_oscillation_set[traj_num][6].replace('\n', '') + '\n',fontsize=12)
-            # ', oblique v_0:' + str(round(slope * 10 / 0.44704, 2)) + 'mph\n')
+                if first_fig == 'spacing':
+                    plt.plot(extended_traj[0], spacing_FV,
+                             'k', label='spacing_veh1-2', linewidth=2)
+                    plt.ylabel('spacing (m)', fontsize=label_size)
+                    # plt.ylim([20, 40])
 
-            if first_fig == 'spacing':
-                plt.plot(extended_traj[0], spacing_FV,
-                         'k', label='spacing_veh1-2', linewidth=2)
-                plt.ylabel('spacing (m)', fontsize=label_size)
-                # plt.ylim([20, 40])
+                if first_fig == 'IVS':
+                    vehLen = 5
+                    plt.plot(extended_traj[0], np.array(spacing_FV) - vehLen,
+                             'k', linewidth=2)
+                    plt.ylabel('inter-vehicle\nspacing (m)', fontsize=label_size)
+                    plt.ylim([16.8, 30.5])
 
-            if first_fig == 'IVS':
-                vehLen = 5
-                plt.plot(extended_traj[0], np.array(spacing_FV) - vehLen,
-                         'k', linewidth=2)
-                plt.ylabel('inter-vehicle\nspacing (m)', fontsize=label_size)
-                plt.ylim([16.8, 30.5])
+                if first_fig == 'elevation':
+                    plt.plot(extended_traj[0], extended_traj[7],
+                             'k', linewidth=2)
+                    plt.ylabel('elevation (m)', fontsize=label_size)
+                    # print(round(100*abs((max(extended_traj[7]) - min(extended_traj[7]))/(d_HV[np.argmax(extended_traj[7])]-d_HV[np.argmin(extended_traj[7])])),1))
 
-            if first_fig == 'elevation':
-                plt.plot(extended_traj[0], extended_traj[7],
-                         'k', linewidth=2)
-                plt.ylabel('elevation (m)', fontsize=label_size)
-                # print(round(100*abs((max(extended_traj[7]) - min(extended_traj[7]))/(d_HV[np.argmax(extended_traj[7])]-d_HV[np.argmin(extended_traj[7])])),1))
+                if first_fig in ['oblique_traj', 'traj']:
 
-            if first_fig in ['oblique_traj', 'traj']:
+                    max_position = 0
+                    min_position = 0
 
-                max_position = 0
-                min_position = 0
+                    for i in range(1, draw_veh + 1):
+                        # oblique
+                        if first_fig == 'oblique_traj':
+                            oblique_traj = [extended_traj[i + 3][j] - extended_traj[6][0] - slope * j
+                                            for j in range(len(extended_traj[i + 3]))]
 
-                for i in range(1, draw_veh + 1):
-                    # oblique
-                    if first_fig == 'oblique_traj':
-                        oblique_traj = [extended_traj[i + 3][j] - extended_traj[6][0] - slope * j
-                                        for j in range(len(extended_traj[i + 3]))]
+                            plt.ylabel('oblique location(m)  $v_0$=' + str(int(round(slope * 10 / 0.44704, 0))) + 'mph', fontsize=label_size)
+                            start_points = []
+                            end_points = []
 
-                        plt.ylabel('oblique location(m)  $v_0$=' + str(int(round(slope * 10 / 0.44704, 0))) + 'mph', fontsize=label_size)
-                        start_points = []
-                        end_points = []
-
-                        for o in oscillations_LV:
-                            bx.scatter(o[2], extended_traj[4][find_nearest_index(extended_traj[0], o[2])] - extended_traj[6][0] - slope * (o[2]+65)*10, color='g', s=60,zorder=10)
-                            bx.scatter(o[6], extended_traj[4][find_nearest_index(extended_traj[0], o[6])] - extended_traj[6][0] - slope * (o[6]+65)*10, color='g', s=60,zorder=10)
-                            bx.scatter(o[8], extended_traj[4][find_nearest_index(extended_traj[0], o[8])] - extended_traj[6][0] - slope * (o[8]+65)*10, color='g', s=60,zorder=10)
-                            bx.scatter(o[4], extended_traj[4][find_nearest_index(extended_traj[0], o[4])] - extended_traj[6][0] - slope * (o[4]+65)*10, color='g', s=60,zorder=10)
-                            start_points.append(extended_traj[4][find_nearest_index(extended_traj[0], o[2])] - extended_traj[6][0] - slope * (o[2]+65)*10)
-                            end_points.append(extended_traj[4][find_nearest_index(extended_traj[0], o[4])] - extended_traj[6][0] - slope * (o[4]+65)*10)
-
-                        for o in oscillations_FV:
-                            if len(o) == 0:
-                                continue
-                            bx.scatter(o[2], extended_traj[5][find_nearest_index(extended_traj[0], o[2])] - extended_traj[6][0] - slope * (o[2]+65)*10, color='r', s=60,zorder=10)
-                            bx.scatter(o[6], extended_traj[5][find_nearest_index(extended_traj[0], o[6])] - extended_traj[6][0] - slope * (o[6]+65)*10, color='r', s=60,zorder=10)
-                            bx.scatter(o[8], extended_traj[5][find_nearest_index(extended_traj[0], o[8])] - extended_traj[6][0] - slope * (o[8]+65)*10, color='r', s=60,zorder=10)
-                            bx.scatter(o[4], extended_traj[5][find_nearest_index(extended_traj[0], o[4])] - extended_traj[6][0] - slope * (o[4]+65)*10, color='r', s=60,zorder=10)
-                            start_points.append(extended_traj[5][find_nearest_index(extended_traj[0], o[2])] - extended_traj[6][0] - slope * (o[2]+65)*10)
-                            end_points.append(extended_traj[5][find_nearest_index(extended_traj[0], o[4])] - extended_traj[6][0] - slope * (o[4]+65)*10)
-
-                        if draw_veh == 3:
-                            for o in oscillations_TV:
-                                if len(o) == 0:
-                                    continue
-                                bx.scatter(o[2], extended_traj[6][find_nearest_index(extended_traj[0], o[2])] - extended_traj[6][0] - slope * (o[2]+65)*10, color='b',
-                                           s=60,zorder=10)
-                                bx.scatter(o[6], extended_traj[6][find_nearest_index(extended_traj[0], o[6])] - extended_traj[6][0] - slope * (o[6]+65)*10, color='b',
-                                           s=60,zorder=10)
-                                bx.scatter(o[8], extended_traj[6][find_nearest_index(extended_traj[0], o[8])] - extended_traj[6][0] - slope * (o[8]+65)*10, color='b',
-                                           s=60,zorder=10)
-                                bx.scatter(o[4], extended_traj[6][find_nearest_index(extended_traj[0], o[4])]- extended_traj[6][0] - slope * (o[4]+65)*10, color='b',
-                                           s=60,zorder=10)
-                                start_points.append(extended_traj[6][find_nearest_index(extended_traj[0], o[2])] - extended_traj[6][0] - slope * (o[2]+65)*10)
-                                end_points.append(extended_traj[6][find_nearest_index(extended_traj[0], o[4])]- extended_traj[6][0] - slope * (o[4]+65)*10)
-
-                        if i != draw_veh:
-                            newell_traj = [dd - congested_s - tau0 * 10 * slope for dd in oblique_traj]
-                            plt.plot([tt + tau0 for tt in extended_traj[0]], newell_traj,
-                                     'k--', label='Newell', linewidth=2, alpha = 1)
-
-                            # for o in oscillations_LV:
-                            #     bx.scatter(o[2]+tau0, newell_traj[find_nearest_index(extended_traj[0], o[2])],
-                            #                color='b', s=60, zorder=10,alpha=1)
-                            #     bx.scatter(o[6]+tau0, newell_traj[find_nearest_index(extended_traj[0], o[6])],
-                            #                color='b', s=60, zorder=10,alpha=1)
-                            #     bx.scatter(o[8]+tau0, newell_traj[find_nearest_index(extended_traj[0], o[8])],
-                            #                color='b', s=60, zorder=10,alpha=1)
-                            #     bx.scatter(o[4]+tau0, newell_traj[find_nearest_index(extended_traj[0], o[4])],
-                            #                color='b', s=60, zorder=10,alpha=1)
-                        max_position = max(end_points)
-                        min_position = min(start_points)
-                        plt.ylim([min_position - 50, max_position + 50])
-
-                    # no oblique
-                    if first_fig == 'traj':
-
-
-                        oblique_traj = [extended_traj[i + 3][j] - extended_traj[4][find_nearest_index(extended_traj[0], X_LIMIT[0])]
-                                        for j in range(len(extended_traj[i + 3]))]
-
-
-                        if i != draw_veh:
-                            newell_traj = [dd - congested_s for dd in oblique_traj]
-                            plt.plot([tt + tau0 for tt in extended_traj[0]], newell_traj,
-                                     'k--', label='Newell', linewidth=1, alpha = .5)
-                            # for o in oscillations_LV:
-                            #     bx.scatter(o[2]+tau0, newell_traj[find_nearest_index(extended_traj[0], o[2])],
-                            #                color='b', s=60, zorder=10,alpha=1)
-                            #     bx.scatter(o[6]+tau0, newell_traj[find_nearest_index(extended_traj[0], o[6])],
-                            #                color='b', s=60, zorder=10,alpha=1)
-                            #     bx.scatter(o[8]+tau0, newell_traj[find_nearest_index(extended_traj[0], o[8])],
-                            #                color='b', s=60, zorder=10,alpha=1)
-                            #     bx.scatter(o[4]+tau0, newell_traj[find_nearest_index(extended_traj[0], o[4])],
-                            #                color='b', s=60, zorder=10,alpha=1)
-                        if i == 1:
                             for o in oscillations_LV:
-                                bx.scatter(o[2], oblique_traj[find_nearest_index(extended_traj[0], o[2])], color='g', s=60)
-                                bx.scatter(o[6], oblique_traj[find_nearest_index(extended_traj[0], o[6])], color='g', s=60)
-                                bx.scatter(o[8], oblique_traj[find_nearest_index(extended_traj[0], o[8])], color='g', s=60)
-                                bx.scatter(o[4], oblique_traj[find_nearest_index(extended_traj[0], o[4])], color='g', s=60)
-                        elif i == 2:
+                                bx.scatter(o[2], extended_traj[4][find_nearest_index(extended_traj[0], o[2])] - extended_traj[6][0] - slope * (o[2]+65)*10, color='g', s=60,zorder=10)
+                                bx.scatter(o[6], extended_traj[4][find_nearest_index(extended_traj[0], o[6])] - extended_traj[6][0] - slope * (o[6]+65)*10, color='g', s=60,zorder=10)
+                                bx.scatter(o[8], extended_traj[4][find_nearest_index(extended_traj[0], o[8])] - extended_traj[6][0] - slope * (o[8]+65)*10, color='g', s=60,zorder=10)
+                                bx.scatter(o[4], extended_traj[4][find_nearest_index(extended_traj[0], o[4])] - extended_traj[6][0] - slope * (o[4]+65)*10, color='g', s=60,zorder=10)
+                                start_points.append(extended_traj[4][find_nearest_index(extended_traj[0], o[2])] - extended_traj[6][0] - slope * (o[2]+65)*10)
+                                end_points.append(extended_traj[4][find_nearest_index(extended_traj[0], o[4])] - extended_traj[6][0] - slope * (o[4]+65)*10)
+
                             for o in oscillations_FV:
                                 if len(o) == 0:
                                     continue
-                                bx.scatter(o[2], oblique_traj[find_nearest_index(extended_traj[0], o[2])], color='r', s=60)
-                                bx.scatter(o[6], oblique_traj[find_nearest_index(extended_traj[0], o[6])], color='r', s=60)
-                                bx.scatter(o[8], oblique_traj[find_nearest_index(extended_traj[0], o[8])], color='r', s=60)
-                                bx.scatter(o[4], oblique_traj[find_nearest_index(extended_traj[0], o[4])], color='r', s=60)
-                        elif i == 3:
-                            for o in oscillations_TV:
-                                if len(o) == 0:
-                                    continue
-                                bx.scatter(o[2], oblique_traj[find_nearest_index(extended_traj[0], o[2])], color='b',
-                                           s=60)
-                                bx.scatter(o[6], oblique_traj[find_nearest_index(extended_traj[0], o[6])], color='b',
-                                           s=60)
-                                bx.scatter(o[8], oblique_traj[find_nearest_index(extended_traj[0], o[8])], color='b',
-                                           s=60)
-                                bx.scatter(o[4], oblique_traj[find_nearest_index(extended_traj[0], o[4])], color='b',
-                                           s=60)
+                                bx.scatter(o[2], extended_traj[5][find_nearest_index(extended_traj[0], o[2])] - extended_traj[6][0] - slope * (o[2]+65)*10, color='r', s=60,zorder=10)
+                                bx.scatter(o[6], extended_traj[5][find_nearest_index(extended_traj[0], o[6])] - extended_traj[6][0] - slope * (o[6]+65)*10, color='r', s=60,zorder=10)
+                                bx.scatter(o[8], extended_traj[5][find_nearest_index(extended_traj[0], o[8])] - extended_traj[6][0] - slope * (o[8]+65)*10, color='r', s=60,zorder=10)
+                                bx.scatter(o[4], extended_traj[5][find_nearest_index(extended_traj[0], o[4])] - extended_traj[6][0] - slope * (o[4]+65)*10, color='r', s=60,zorder=10)
+                                start_points.append(extended_traj[5][find_nearest_index(extended_traj[0], o[2])] - extended_traj[6][0] - slope * (o[2]+65)*10)
+                                end_points.append(extended_traj[5][find_nearest_index(extended_traj[0], o[4])] - extended_traj[6][0] - slope * (o[4]+65)*10)
 
-                        plt.ylabel('location(m)', fontsize=label_size)
-                        plt.ylim([0, trajAxisLen])
+                            if draw_veh == 3:
+                                for o in oscillations_TV:
+                                    if len(o) == 0:
+                                        continue
+                                    bx.scatter(o[2], extended_traj[6][find_nearest_index(extended_traj[0], o[2])] - extended_traj[6][0] - slope * (o[2]+65)*10, color='b',
+                                               s=60,zorder=10)
+                                    bx.scatter(o[6], extended_traj[6][find_nearest_index(extended_traj[0], o[6])] - extended_traj[6][0] - slope * (o[6]+65)*10, color='b',
+                                               s=60,zorder=10)
+                                    bx.scatter(o[8], extended_traj[6][find_nearest_index(extended_traj[0], o[8])] - extended_traj[6][0] - slope * (o[8]+65)*10, color='b',
+                                               s=60,zorder=10)
+                                    bx.scatter(o[4], extended_traj[6][find_nearest_index(extended_traj[0], o[4])]- extended_traj[6][0] - slope * (o[4]+65)*10, color='b',
+                                               s=60,zorder=10)
+                                    start_points.append(extended_traj[6][find_nearest_index(extended_traj[0], o[2])] - extended_traj[6][0] - slope * (o[2]+65)*10)
+                                    end_points.append(extended_traj[6][find_nearest_index(extended_traj[0], o[4])]- extended_traj[6][0] - slope * (o[4]+65)*10)
+
+                            if i != draw_veh:
+                                newell_traj = [dd - congested_s - tau0 * 10 * slope for dd in oblique_traj]
+                                plt.plot([tt + tau0 for tt in extended_traj[0]], newell_traj,
+                                         'k--', label='Newell', linewidth=2, alpha = 1)
+
+                                # for o in oscillations_LV:
+                                #     bx.scatter(o[2]+tau0, newell_traj[find_nearest_index(extended_traj[0], o[2])],
+                                #                color='b', s=60, zorder=10,alpha=1)
+                                #     bx.scatter(o[6]+tau0, newell_traj[find_nearest_index(extended_traj[0], o[6])],
+                                #                color='b', s=60, zorder=10,alpha=1)
+                                #     bx.scatter(o[8]+tau0, newell_traj[find_nearest_index(extended_traj[0], o[8])],
+                                #                color='b', s=60, zorder=10,alpha=1)
+                                #     bx.scatter(o[4]+tau0, newell_traj[find_nearest_index(extended_traj[0], o[4])],
+                                #                color='b', s=60, zorder=10,alpha=1)
+                            max_position = max(end_points)
+                            min_position = min(start_points)
+                            plt.ylim([min_position - 50, max_position + 50])
+
+                        # no oblique
+                        if first_fig == 'traj':
 
 
-                    color_indicator = np.array(extended_traj[i])
-                    points = np.array([np.array(extended_traj[0]), np.array(oblique_traj)]).T.reshape(-1, 1, 2)
-                    segments = np.concatenate([points[:-1], points[1:]], axis=1)
-                    norm = plt.Normalize(used_y_limit[0] + 5, used_y_limit[0] + 15 + 2.5)
-                    lc = LineCollection(segments, cmap='jet_r', norm=norm)
-                    lc.set_array(color_indicator)
-                    lc.set_linewidth(2)#original - 4,
-                    bx.add_collection(lc)
+                            oblique_traj = [extended_traj[i + 3][j] - extended_traj[4][find_nearest_index(extended_traj[0], X_LIMIT[0])]
+                                            for j in range(len(extended_traj[i + 3]))]
 
-                # cmap_jet = pcm.get_cmap('jet_r')
-                # sm = plt.cm.ScalarMappable(cmap=cmap_jet,
-                #                            norm=plt.Normalize(vmin=used_y_limit[0] + 5, vmax=used_y_limit[0] + 15))
-                # cbar = plt.colorbar(sm, orientation='horizontal', cax=plt.axes([0.2, 0.595, 0.65, 0.025]))
-                # # cbar.set_label('speed (mph)', fontsize=16)
-                # cbar.set_ticks([used_y_limit[0] + 5, used_y_limit[0] + 10, used_y_limit[0] + 15])
 
-            if first_fig == 'eta':
+                            if i != draw_veh:
+                                newell_traj = [dd - congested_s for dd in oblique_traj]
+                                plt.plot([tt + tau0 for tt in extended_traj[0]], newell_traj,
+                                         'k--', label='Newell', linewidth=1, alpha = .5)
+                                # for o in oscillations_LV:
+                                #     bx.scatter(o[2]+tau0, newell_traj[find_nearest_index(extended_traj[0], o[2])],
+                                #                color='b', s=60, zorder=10,alpha=1)
+                                #     bx.scatter(o[6]+tau0, newell_traj[find_nearest_index(extended_traj[0], o[6])],
+                                #                color='b', s=60, zorder=10,alpha=1)
+                                #     bx.scatter(o[8]+tau0, newell_traj[find_nearest_index(extended_traj[0], o[8])],
+                                #                color='b', s=60, zorder=10,alpha=1)
+                                #     bx.scatter(o[4]+tau0, newell_traj[find_nearest_index(extended_traj[0], o[4])],
+                                #                color='b', s=60, zorder=10,alpha=1)
+                            if i == 1:
+                                for o in oscillations_LV:
+                                    bx.scatter(o[2], oblique_traj[find_nearest_index(extended_traj[0], o[2])], color='g', s=60)
+                                    bx.scatter(o[6], oblique_traj[find_nearest_index(extended_traj[0], o[6])], color='g', s=60)
+                                    bx.scatter(o[8], oblique_traj[find_nearest_index(extended_traj[0], o[8])], color='g', s=60)
+                                    bx.scatter(o[4], oblique_traj[find_nearest_index(extended_traj[0], o[4])], color='g', s=60)
+                            elif i == 2:
+                                for o in oscillations_FV:
+                                    if len(o) == 0:
+                                        continue
+                                    bx.scatter(o[2], oblique_traj[find_nearest_index(extended_traj[0], o[2])], color='r', s=60)
+                                    bx.scatter(o[6], oblique_traj[find_nearest_index(extended_traj[0], o[6])], color='r', s=60)
+                                    bx.scatter(o[8], oblique_traj[find_nearest_index(extended_traj[0], o[8])], color='r', s=60)
+                                    bx.scatter(o[4], oblique_traj[find_nearest_index(extended_traj[0], o[4])], color='r', s=60)
+                            elif i == 3:
+                                for o in oscillations_TV:
+                                    if len(o) == 0:
+                                        continue
+                                    bx.scatter(o[2], oblique_traj[find_nearest_index(extended_traj[0], o[2])], color='b',
+                                               s=60)
+                                    bx.scatter(o[6], oblique_traj[find_nearest_index(extended_traj[0], o[6])], color='b',
+                                               s=60)
+                                    bx.scatter(o[8], oblique_traj[find_nearest_index(extended_traj[0], o[8])], color='b',
+                                               s=60)
+                                    bx.scatter(o[4], oblique_traj[find_nearest_index(extended_traj[0], o[4])], color='b',
+                                               s=60)
 
-                plt.ylim([.8, 1.2])
+                            plt.ylabel('location(m)', fontsize=label_size)
+                            plt.ylim([0, trajAxisLen])
 
-                bx.plot(t_ita_ACC1_fix_wave, ita_ACC1_fix_wave, c='k', linewidth=2, label='t ratio (with interplot)')
 
-                plt.ylabel('$\\eta$', fontsize=label_size)
+                        color_indicator = np.array(extended_traj[i])
+                        points = np.array([np.array(extended_traj[0]), np.array(oblique_traj)]).T.reshape(-1, 1, 2)
+                        segments = np.concatenate([points[:-1], points[1:]], axis=1)
+                        norm = plt.Normalize(used_y_limit[0] + 5, used_y_limit[0] + 15 + 2.5)
+                        lc = LineCollection(segments, cmap='jet_r', norm=norm)
+                        lc.set_array(color_indicator)
+                        lc.set_linewidth(2)#original - 4,
+                        bx.add_collection(lc)
+
+                    # cmap_jet = pcm.get_cmap('jet_r')
+                    # sm = plt.cm.ScalarMappable(cmap=cmap_jet,
+                    #                            norm=plt.Normalize(vmin=used_y_limit[0] + 5, vmax=used_y_limit[0] + 15))
+                    # cbar = plt.colorbar(sm, orientation='horizontal', cax=plt.axes([0.2, 0.595, 0.65, 0.025]))
+                    # # cbar.set_label('speed (mph)', fontsize=16)
+                    # cbar.set_ticks([used_y_limit[0] + 5, used_y_limit[0] + 10, used_y_limit[0] + 15])
+
+                if first_fig == 'eta':
+
+                    plt.ylim([.8, 1.2])
+
+                    bx.plot(t_ita_ACC1_fix_wave, ita_ACC1_fix_wave, c='k', linewidth=2, label='t ratio (with interplot)')
+
+                    plt.ylabel('$\\eta$', fontsize=label_size)
+                    plt.xlim(X_LIMIT)
+                    plt.grid(True)
+
+                ax = fig.add_subplot(212)
+                if high_plot:
+                    ax.set_position([0.15, 0.1, 0.8, 0.25])
+                else:
+                    ax.set_position([0.1, 0.1, 0.87, 0.35])
+
+                for i in range(1, draw_veh + 1):
+                    ax.plot(extended_traj[0], extended_traj[i], c=traj_color[i - 1], label=traj_label[i - 1])
+
+                    if (i < draw_veh) and speed_shift:
+                        ax.plot([tt + tau0 for tt in extended_traj[0]], extended_traj[i], c=traj_color[i - 1],
+                                linestyle='--',linewidth=1
+                                ,label=traj_label[i - 1]+' (shifted by $\\tau_0$)'
+                                )
+
+                try:
+
+                    for o in oscillations_LV:
+                        # ax.scatter(o[2] + tau0, o[3], color='b', s=60, alpha =1)
+                        # ax.scatter(o[6] + tau0, o[7], color='b', s=60, alpha =1)
+                        # ax.scatter(o[8] + tau0, o[9], color='b', s=60, alpha =1)
+                        # ax.scatter(o[4] + tau0, o[5], color='b', s=60, alpha =1)
+                        ax.scatter(o[2], o[3], color='g', s=60)
+                        ax.scatter(o[6], o[7], color='g', s=60)
+                        ax.scatter(o[8], o[9], color='g', s=60)
+                        ax.scatter(o[4], o[5], color='g', s=60)
+                        # ax.scatter(o[0], o[1], color='k', marker='*', s=120)
+                    for o in oscillations_FV:
+                        if len(o) == 0:
+                            continue
+                        ax.scatter(o[2], o[3], color='r', s=60)
+                        ax.scatter(o[6], o[7], color='r', s=60)
+                        ax.scatter(o[8], o[9], color='r', s=60)
+                        ax.scatter(o[4], o[5], color='r', s=60)
+                        # ax.scatter(o[0], o[1], color='k', marker='*', s=120)
+                    for o in oscillations_TV:
+                        if len(o) == 0:
+                            continue
+                        if o[2] > oscillations_FV[0][4]:
+                            continue
+                        if draw_veh < 3:
+                            continue
+                        ax.scatter(o[2], o[3], color='b', s=60)
+                        ax.scatter(o[6], o[7], color='b', s=60)
+                        ax.scatter(o[8], o[9], color='b', s=60)
+                        ax.scatter(o[4], o[5], color='b', s=60)
+                except:
+                    pass
                 plt.xlim(X_LIMIT)
+                ticks_in_ms = np.arange(round(used_y_limit[0] * 0.44704), round(used_y_limit[1] * 0.44704) + 2, 2)
+                plt.yticks(ticks_in_ms * 2.23694, ticks_in_ms)
+                plt.ylim([used_y_limit[0], used_y_limit[1]+3]) #mild - 7, strong - 1
+                plt.ylabel('speed (m/s)', fontsize=label_size)
                 plt.grid(True)
+                if not high_plot:
+                    plt.legend(loc=4, fontsize=16)
+                else:
+                    plt.legend(loc=4, fontsize=12)
+                plt.xlabel('time (s)', fontsize=label_size)
 
-            ax = fig.add_subplot(212)
-            if high_plot:
-                ax.set_position([0.15, 0.1, 0.8, 0.25])
-            else:
-                ax.set_position([0.1, 0.1, 0.87, 0.35])
+                try:
+                    os.stat(os.path.dirname(__file__) + folder_name + 'figures_GPS_data/')
+                except:
+                    os.mkdir(os.path.dirname(__file__) + folder_name + 'figures_GPS_data/')
 
-            for i in range(1, draw_veh + 1):
-                ax.plot(extended_traj[0], extended_traj[i], c=traj_color[i - 1], label=traj_label[i - 1])
+                plt.savefig(os.path.dirname(__file__) + folder_name + 'figures_GPS_data/split_' +
+                            str(selected_oscillation_set[traj_num][-1]) + '.png')
+                plt.close()
 
-                if (i < draw_veh) and speed_shift:
-                    ax.plot([tt + tau0 for tt in extended_traj[0]], extended_traj[i], c=traj_color[i - 1],
-                            linestyle='--',linewidth=1
-                            ,label=traj_label[i - 1]+' (shifted by $\\tau_0$)'
-                            )
-
-            try:
-
-                for o in oscillations_LV:
-                    # ax.scatter(o[2] + tau0, o[3], color='b', s=60, alpha =1)
-                    # ax.scatter(o[6] + tau0, o[7], color='b', s=60, alpha =1)
-                    # ax.scatter(o[8] + tau0, o[9], color='b', s=60, alpha =1)
-                    # ax.scatter(o[4] + tau0, o[5], color='b', s=60, alpha =1)
-                    ax.scatter(o[2], o[3], color='g', s=60)
-                    ax.scatter(o[6], o[7], color='g', s=60)
-                    ax.scatter(o[8], o[9], color='g', s=60)
-                    ax.scatter(o[4], o[5], color='g', s=60)
-                    # ax.scatter(o[0], o[1], color='k', marker='*', s=120)
-                for o in oscillations_FV:
-                    if len(o) == 0:
+            if SAVE_TRAJ:
+                savePeriod = (oscillations_LV[0][2] - 60, oscillations_LV[0][4] + 60)
+                flink = open(os.path.dirname(__file__) + folder_name + \
+                             'split_traj/summary_output_oscillation_%s.csv' % str(selected_oscillation_set[traj_num][-1]),
+                             'w')
+                for i in range(len(extended_traj[0])):
+                    if extended_traj[0][i] < savePeriod[0] or extended_traj[0][i] > savePeriod[1]:
                         continue
-                    ax.scatter(o[2], o[3], color='r', s=60)
-                    ax.scatter(o[6], o[7], color='r', s=60)
-                    ax.scatter(o[8], o[9], color='r', s=60)
-                    ax.scatter(o[4], o[5], color='r', s=60)
-                    # ax.scatter(o[0], o[1], color='k', marker='*', s=120)
-                for o in oscillations_TV:
-                    if len(o) == 0:
-                        continue
-                    if o[2] > oscillations_FV[0][4]:
-                        continue
-                    if draw_veh < 3:
-                        continue
-                    ax.scatter(o[2], o[3], color='b', s=60)
-                    ax.scatter(o[6], o[7], color='b', s=60)
-                    ax.scatter(o[8], o[9], color='b', s=60)
-                    ax.scatter(o[4], o[5], color='b', s=60)
-            except:
-                pass
-            plt.xlim(X_LIMIT)
-            ticks_in_ms = np.arange(round(used_y_limit[0] * 0.44704), round(used_y_limit[1] * 0.44704) + 2, 2)
-            plt.yticks(ticks_in_ms * 2.23694, ticks_in_ms)
-            plt.ylim([used_y_limit[0], used_y_limit[1]+3]) #mild - 7, strong - 1
-            plt.ylabel('speed (m/s)', fontsize=label_size)
-            plt.grid(True)
-            if not high_plot:
-                plt.legend(loc=4, fontsize=16)
-            else:
-                plt.legend(loc=4, fontsize=12)
-            plt.xlabel('time (s)', fontsize=label_size)
-
-            try:
-                os.stat(os.path.dirname(__file__) + folder_name + 'figures_GPS_data/')
-            except:
-                os.mkdir(os.path.dirname(__file__) + folder_name + 'figures_GPS_data/')
-
-            plt.savefig(os.path.dirname(__file__) + folder_name + 'figures_GPS_data/split_' +
-                        str(selected_oscillation_set[traj_num][-1]) + '.png')
-            plt.close()
-
-            # flink = open(os.path.dirname(__file__) + folder_name + \
-            #              'split_traj/summary_output_oscillation_%s.csv' % str(selected_oscillation_set[traj_num][-1]),
-            #              'w')
-            # for i in range(len(extended_traj[0])):
-            #     for item in extended_traj:
-            #         flink.write('%s,' % item[i])
-            #     flink.write('\n')
-            # flink.close()
+                    for item in extended_traj:
+                        flink.write('%s,' % item[i])
+                    flink.write('\n')
+                flink.close()
 
 
             traj_num += 1

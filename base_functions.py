@@ -266,16 +266,18 @@ def ACC_in_use(speed_time_series,speed,LEAD_INFO_time_series,front_space,relativ
         traj_info.append((speed_time_series[ss:se],speed[ss:se],LEAD_INFO_time_series[ls:le],front_space[ls:le],relative_speed[ls:le]))
     return traj_info
 
-def linear_regression(X, Y, weight = None, size = True):
+def linear_regression(X, Y, weight = None, size = False, complete_return = False):
     X=np.array(X).reshape(len(X),1).astype(np.float32)
     Y=np.array(Y).reshape(len(Y),1).astype(np.float32)
-    if size:
-        print('size:',len(X))
+
     regr = linear_model.LinearRegression()
     regr.fit(X, Y, sample_weight = weight)
     y_pred = regr.predict(X)
+    if size:
+        print('size:',len(X))
+        print('R2=',round(metrics.r2_score(Y, y_pred),3))
+        # print('p_value intercept:', round(p_values[0],3), 'coef:', round(p_values[1],3))
 
-    print('R2=',round(metrics.r2_score(Y, y_pred),3))
     params = np.append(regr.intercept_, regr.coef_)
     params = np.array([round_sig(p, sig = 2) for p in params])
 
@@ -285,8 +287,10 @@ def linear_regression(X, Y, weight = None, size = True):
     sd_b = np.sqrt(var_b)
     ts_b = params / sd_b
     p_values = [2 * (1 - stats.t.cdf(np.abs(i), (len(newX) - 1))) for i in ts_b]
-    print('p_value intercept:', round(p_values[0],3), 'coef:', round(p_values[1],3))
-    return params[1],params[0],p_values[1]
+    if not complete_return:
+        return params[1], params[0], p_values[1]
+    else:
+        return params[1], params[0], p_values[1], round(metrics.r2_score(Y, y_pred),2)
 
 def multi_linear_regression(X, y, weight = None, X_index = None):
     print('size:',len(X))
@@ -572,7 +576,6 @@ def denoise_speed(X, derThreshold = (-5, 4)):
     return X / 0.44704 #from m/s back to mph
 
 
-
 def denoise_loc(loc, speedRef, errRange = 5):
     resolution = 0.1
     speedRef = np.array(speedRef)
@@ -626,6 +629,133 @@ def denoise_loc(loc, speedRef, errRange = 5):
         if iteration > 10:
             break
     return loc
+
+
+def denoise_elevation(X, derThreshold=(-.02, .02)):
+    X = np.array(X)
+    X = X
+    Xprime = derivative(X)
+    noises = 1
+    iteration = 0
+    while noises > 0:
+        iteration += 1
+        noises = 0
+        i = 0
+        while i < len(Xprime) - 1:
+            if (Xprime[i] > derThreshold[1]) or (Xprime[i] < derThreshold[0]):
+                iStart, iMedian, iEnd = i, i, i
+                if Xprime[i] > derThreshold[1]:
+                    sign = 1
+                if Xprime[i] < derThreshold[0]:
+                    sign = -1
+                noises += 1
+
+                while i < len(Xprime) - 1:
+                    i += 1
+                    if sign == 1:
+                        if iMedian == iStart:
+                            if Xprime[i] < derThreshold[0]:
+                                iMedian = i
+                        else:
+                            if Xprime[i] > derThreshold[0]:
+                                iEnd = i
+                    if sign == -1:
+                        if iMedian == iStart:
+                            if Xprime[i] > derThreshold[0]:
+                                iMedian = i
+                        else:
+                            if Xprime[i] < derThreshold[0]:
+                                iEnd = i
+
+                    if iEnd > iStart:
+                        if iStart > 0:
+                            slope = (X[iEnd + 1] - X[iStart]) / (iEnd - iStart + 1)
+                            #                             print(X[iStart], X[iEnd + 1], slope)
+                            for j in range(iStart + 1, iEnd + 1):
+                                X[j] = X[j - 1] + slope
+                        else:
+                            for j in range(iEnd, iStart - 1, -1):
+                                X[j] = X[j + 1]
+                        break
+                    if i > iStart + 100:
+                        break
+                if iStart == iEnd:
+                    if iStart == 0:
+                        X[iStart] = 2 * X[iStart + 1] - X[iStart + 2]
+                    else:
+                        X[iStart + 1] = (X[iStart] + X[iStart + 2]) / 2
+            i += 1
+        if (Xprime[-1] > derThreshold[1]) or (Xprime[-1] < derThreshold[0]):
+            X[-1] = 2 * X[-2] - X[-3]
+            noises += 1
+        #         print(noises)
+        Xprime = derivative(X)
+        if iteration > 10:
+            break
+    return X
+
+
+def denoise_grade(X, derThreshold=(-.1, .1)):
+    X = np.array(X)
+    X = X
+    Xprime = derivative(X)
+    noises = 1
+    iteration = 0
+    while noises > 0:
+        iteration += 1
+        noises = 0
+        i = 0
+        while i < len(Xprime) - 1:
+            if (Xprime[i] > derThreshold[1]) or (Xprime[i] < derThreshold[0]):
+                iStart, iMedian, iEnd = i, i, i
+                if Xprime[i] > derThreshold[1]:
+                    sign = 1
+                if Xprime[i] < derThreshold[0]:
+                    sign = -1
+                noises += 1
+
+                while i < len(Xprime) - 1:
+                    i += 1
+                    if sign == 1:
+                        if iMedian == iStart:
+                            if Xprime[i] < derThreshold[0]:
+                                iMedian = i
+                        else:
+                            if Xprime[i] > derThreshold[0]:
+                                iEnd = i
+                    if sign == -1:
+                        if iMedian == iStart:
+                            if Xprime[i] > derThreshold[0]:
+                                iMedian = i
+                        else:
+                            if Xprime[i] < derThreshold[0]:
+                                iEnd = i
+
+                    if iEnd > iStart:
+                        if iStart > 0:
+                            slope = (X[iEnd + 1] - X[iStart]) / (iEnd - iStart + 1)
+                            #                             print(X[iStart], X[iEnd + 1], slope)
+                            for j in range(iStart + 1, iEnd + 1):
+                                X[j] = X[j - 1] + slope
+                        else:
+                            for j in range(iEnd, iStart - 1, -1):
+                                X[j] = X[j + 1]
+                        break
+                    if i > iStart + 150:
+                        break
+                if iStart == iEnd:
+                    if iStart == 0:
+                        X[iStart] = 2 * X[iStart + 1] - X[iStart + 2]
+                    else:
+                        X[iStart + 1] = (X[iStart] + X[iStart + 2]) / 2
+            i += 1
+        if (Xprime[-1] > derThreshold[1]) or (Xprime[-1] < derThreshold[0]):
+            X[-1] = 2 * X[-2] - X[-3]
+            noises += 1
+        Xprime = derivative(X)
+        if iteration > 20:
+            break
+    return X
 
 def veh_name(date):
     if date == 12:

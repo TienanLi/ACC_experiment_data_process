@@ -3,7 +3,7 @@ import pickle
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from base_functions import linear_regression
+from base_functions import linear_regression, denoise_grade, denoise_elevation, moving_average
 
 
 def vehicles_column(veh):
@@ -37,7 +37,7 @@ def SL_info(keyName):
 def find_equilibrium(traj_dict, vehicleInfoDict):
     np.seterr(all='raise')
 
-    TH = [0.44704, 1, 0.44704] #speed spacing
+    TH = [0.44704, 1, 0.44704] #self_speed (m/s), spacing(m), lead_speed(m/s)
     TH_horizon = 100 #horizon - in frequency
     disturbance_away = 100
     for k, traj_df in traj_dict.items():
@@ -54,6 +54,9 @@ def find_equilibrium(traj_dict, vehicleInfoDict):
             vehName = vehicleInfo[1][veh+1]
             vehLeader = vehicleInfo[1][veh]
             equilibrium_end_point = traj_df.index[0]
+
+            # if vehName != 'AUDI_A4':
+            #     continue
 
             if vehicleInfo[3] != 'SL':
                 headway = vehicleInfo[3]
@@ -76,7 +79,7 @@ def find_equilibrium(traj_dict, vehicleInfoDict):
                 if max([traj_df[c][i:i + TH_horizon].isna().sum() for c in speed_spacing_column]) > 0:
                     continue
 
-                # lead_speed, self_speed, and spacing threshold
+                # self_speed, spacing, lead_speed
                 variation = [max(traj_df[c][i:i + TH_horizon]) - min(traj_df[c][i:i + TH_horizon]) for c in
                              speed_spacing_column]
                 equlibrium = True
@@ -116,28 +119,81 @@ def find_equilibrium(traj_dict, vehicleInfoDict):
                             equlibrium = False
                     equilibrium_end_point = i + x
 
-                    traj_df[['Time'] + speed_spacing_column][i:i + x].to_csv(os.getcwd() + \
-                            '/platooned_data/ZalaZONE_data/equilibrium_traj/equilibrium__%s__%s__h%s_%s_%s_%s__%s.csv'
-                                       %(vehName, vehLeader, headway, round(traj_df[speed_spacing_column[0]][i], 1),
-                                         traj_df['Time'][i], traj_df['Time'][i + x - 1], k))
+                    # traj_df[['Time'] + speed_spacing_column][i:i + x].to_csv(os.getcwd() + \
+                    #         '/platooned_data/ZalaZONE_data/equilibrium_traj/equilibrium__%s__%s__h%s_%s_%s_%s__%s.csv'
+                    #                    %(vehName, vehLeader, headway, round(traj_df[speed_spacing_column[0]][i], 1),
+                    #                      traj_df['Time'][i], traj_df['Time'][i + x - 1], k))
+
+
+
+
+def calulate_road_grade(experiment, vehicle, timeStart, timeEnd):
+    #need a longer time for better denoise performance
+    before = 50 #s
+    after = 50 #s
+
+    for csv_file in os.listdir(os.getcwd() + '/platooned_data/ZalaZone_data/'):
+        if str(experiment) + '.csv' not in csv_file:
+            continue
+        infoRow = 5
+
+        info = pd.read_csv(os.getcwd() + '/platooned_data/ZalaZONE_data/' + csv_file,
+                           header=None, sep=',',engine='python',
+                           names=np.arange(12), nrows=infoRow, index_col=False)
+        numOfVehicle = int(info.iloc[2][1])
+        vehicleOrder = info.iloc[1][1 : numOfVehicle + 1]
+        vehiclePosition = vehicleOrder[vehicleOrder == vehicle].index[0]
+
+        traj_df = pd.read_csv(os.getcwd() + '/platooned_data/ZalaZone_data/' + csv_file,
+                              header=infoRow, engine='python', sep=',')
+        relevantCol = ['Time'] + ['Alt' + str(vehiclePosition)] + ['Speed' + str(vehiclePosition)]
+        trajDict = traj_df[:][relevantCol].astype('float32')
+        trajDict = trajDict[(trajDict['Time'] > timeStart - before) & (trajDict['Time'] < timeEnd + after)]
+
+
+    elevation = denoise_elevation(trajDict['Alt'  + str(vehiclePosition)])
+    elevation = moving_average(elevation, 10)
+
+    grade = np.diff(elevation, append=np.nan) / np.array(trajDict['Speed'  + str(vehiclePosition)]) / .1 * 100 # % / s
+    grade = denoise_grade(grade)
+    frequency = 10
+    tsIndex = trajDict['Time'].index[trajDict['Time'] == timeStart][0] - trajDict['Time'].index[0]
+    teIndex = trajDict['Time'].index[trajDict['Time'] == timeEnd][0] - trajDict['Time'].index[0]
+    # consider 10s before timeStart to  timeEnd
+    grade = grade[max(0, tsIndex - 10 * frequency) : teIndex + 1]
+    maxGrade = np.nanmax(abs(grade))
+    # if maxGrade > 3.5:
+    #     plt.plot(grade)
+    #     plt.title([experiment, vehicle, timeStart, timeEnd])
+    #     plt.show()
+    return maxGrade
+
 
 def read_data_from_equlirbium_csv(folder_name, veh, min_speed=1, max_speed=30):
     # speed_spacing_column_set = vehicles_column()
     # speed_spacing_column = [str(c) for c in speed_spacing_column_set[veh - 2]]
     experiment = {'S':[], 'L':[], 'M':[]}
+    print('\n', get_veh_name(veh))
+
+
     for csv_file in os.listdir(os.path.dirname(__file__) + folder_name):
         if 'equilibrium__' + get_veh_name(veh) not in csv_file:
             continue
-
-        experimentSet = csv_file.split('__')[3].split('.')[0]
+        experimentSet = csv_file.split('__')[4].split('.')[0]
         headway = csv_file.split('h')[1][0]
         if headway == 'n': #experiment with unknown headway setting
             continue
         traj_df = pd.read_csv(os.path.dirname(__file__)+folder_name+'/' + csv_file)
-
-        # elevation = np.array(traj_df[speed_spacing_column[-1]])
-        # slope = np.mean((elevation[1:] - elevation[:-1]) / (speed[:-1] * 0.1)) #in the unit of vertical/horizontal
         leader = csv_file.split('__')[2]
+
+        # already filtered out
+        # maxGrade = calulate_road_grade(experimentSet, get_veh_name(veh),
+        #                                float(csv_file.split('__')[3].split('_')[2]),
+        #                                float(csv_file.split('__')[3].split('_')[3]), )
+        # if maxGrade > 3.5: #no more than 3.5% grade for the found equilibrium
+        #     print(csv_file, maxGrade)
+        #     continue
+
 
         experiment[headway].append([np.mean(traj_df.iloc[:, 2]), # self_speed
                                        np.mean(traj_df.iloc[:, 3]) + veh_length()[leader], # spacing with leader length
@@ -149,6 +205,7 @@ def read_data_from_equlirbium_csv(folder_name, veh, min_speed=1, max_speed=30):
 
     equil_DF = {k: pd.DataFrame(data=v).sort_values(by=[0]) for k, v in experiment.items() if len(v) > 0}
     equil_DF ={k: v[(v[0] > min_speed) & (v[0] < max_speed)] for k, v in equil_DF.items()}
+
     return equil_DF
 
 def get_name(filename):
@@ -161,8 +218,8 @@ def read_data_from_csv(folder_name):
     for csv_file in os.listdir(os.getcwd() + folder_name):
         if 'part' not in csv_file:
             continue
-        # if 'handling_part17' not in csv_file:
-        #     continue
+        if 'handling_part46' not in csv_file:
+            continue
         infoRow = 5
 
         platoonName = get_name(csv_file)
@@ -198,15 +255,17 @@ def s_v_figure(speed, spacing, setting, label):
     fig = plt.figure(figsize=(6, 4))
     ax = fig.add_subplot(111)
     ax.set_position([0.2, 0.15, 0.75, 0.7])
-    plt.scatter(speed, spacing, s=24, c='r', marker='o')
-    plt.title(label + ' s-v: headway setting ' + setting)
+    plt.scatter(speed, spacing, s=24, c='C0', marker='o')
     plt.xlabel('speed (m/s)')
     plt.ylabel('spacing (m)')
     plt.xlim([0, 35])
     plt.ylim([0, max(spacing) * 1.5])
-    coef, intercept, p_value = linear_regression(speed, spacing, weight=None)
+    coef, intercept, p_value, R2 = linear_regression(speed, spacing, weight=None, complete_return=True)
+    regressionResult = 'coef: %s, intercept: %s, size: %s, $R^2$: %s'%(coef, intercept, len(speed), R2) if p_value < 0.1 \
+        else 'Results not significant, size: %s, $R^2$: %s'%(len(speed), R2)
     print(label, 's-v coef:', coef, 'intercept:', intercept, 'p-value:', round(p_value, 3))
-    plt.plot([0, 35], [0 * coef + intercept, 35 * coef + intercept], 'r--')
+    plt.plot([0, 35], [0 * coef + intercept, 35 * coef + intercept], 'C0--')
+    plt.title(label + ' s-v: headway setting ' + setting + '\n' + regressionResult)
     plt.savefig(os.getcwd() + '/platooned_data/ZalaZONE_data/veh %s s-v headway setting '%label + setting + '.png')
     plt.close()
 
@@ -216,16 +275,18 @@ def draw_FD(equil_DF, setting, veh):
         print('less than one sample for linear regression')
         return
     spacing, speed, density, volume = get_FD_parameters(equil_DF)
-    s_v_figure(speed, spacing, setting, label=get_veh_name(veh))
+    s_v_figure(speed, spacing, setting, label= 'ZalaZone ' + get_veh_name(veh))
     # q_k_figure(density, volumn, density, volumn, setting)
 
 def equilibrium_analysis():
     for veh in range(2, 12):
+        # if get_veh_name(veh) != 'TESLA_MODELX':
+        #     continue
+
         equil_DF = read_data_from_equlirbium_csv('/platooned_data/ZalaZONE_data/equilibrium_traj/', veh)
-        # for s in equil_DF:
-        #     equil_DF[s][1] += veh_length()[veh - 2] # from inter-vehicle spacing to bumper-bumper spacing
+
         fo = open(os.path.dirname(__file__) + \
-                  '/platooned_data/ZalaZONE_data/equilibrium_traj/FD_data_Asta_veh_%s'%get_veh_name(veh), 'wb')
+                  '/platooned_data/ZalaZONE_data/equilibrium_traj/FD__data__ZalaZone__veh__%s'%get_veh_name(veh), 'wb')
         pickle.dump(equil_DF, fo)
         fo.close()
         for k, v in equil_DF.items():
